@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>La Chimenea — cuida tu fuego</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
+  <link rel="stylesheet" href="src/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/",
+        "cannon-es": "./vendor/cannon/cannon-es.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div id="hud" class="panel">
+    <div class="hud-top">
+      <span id="mood">🥶</span>
+      <div>
+        <div class="lbl">Fuego</div>
+        <div id="level">Apagado</div>
+      </div>
+      <div class="pts" title="Puntos de calor"><span id="points">0</span> ✨</div>
+    </div>
+    <div class="bar-row"><span>Llama</span><div class="bar"><i id="bar-fire"></i></div></div>
+    <div class="bar-row"><span>Aire</span><div class="bar air"><i id="bar-air"></i></div></div>
+    <div class="grid">
+      <span>🏠 Sala</span><b id="room">—</b>
+      <span>🌙 Fuera</span><b id="outside">—</b>
+      <span>⏱️ Encendido</span><b id="alive">—</b>
+      <span>🏅 Récord</span><b id="best">—</b>
+    </div>
+    <div id="speed"></div>
+  </div>
+
+  <div id="status" class="panel"></div>
+
+  <div id="topbar">
+    <button class="btn" id="btn-garden" title="Recoge leña gratis del jardín cada pocos minutos">🌲 Jardín</button>
+    <button class="btn" id="btn-shop" title="Compra leña y cerillas con puntos de calor">🛒 Tienda</button>
+    <button class="btn" id="btn-ach" title="Logros">🏆</button>
+    <button class="btn" id="btn-help" title="Ayuda">❔</button>
+    <button class="btn" id="btn-sound" title="Sonido">🔊</button>
+    <button class="btn" id="btn-settings" title="Ajustes">⚙️</button>
+  </div>
+
+  <div id="bottom">
+    <div id="hint"></div>
+    <div id="toolbar" class="panel">
+      <div id="tools"></div>
+      <div class="sep"></div>
+      <div id="inventory"></div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+  <div id="tip"></div>
+
+  <div id="modal">
+    <div class="modal-card panel">
+      <div class="modal-head"><h3 id="modal-title"></h3><button id="modal-close" class="btn">✕</button></div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <noscript>Este juego necesita JavaScript.</noscript>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
