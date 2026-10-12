@@ -129,6 +129,7 @@ function frame() {
     power: vis.power,
     steam: game.sim.steamTotal,
     bellows: game.env.bellows,
+    pouring: ix.pourFlow > 0.02,
     crackleRate: vis.flameTotal * 2.2 + game.sim.bedGlow * 1.5,
     wind: game.state.weather.id === 'wind' ? 1 : game.state.weather.id === 'cold' ? 0.5 : 0.15,
     rain: game.state.weather.id === 'rain' ? 1 : 0,
@@ -148,7 +149,11 @@ function frame() {
   }
 }
 
-window.addEventListener('beforeunload', () => game.save());
+window.addEventListener('beforeunload', (e) => {
+  game.save();
+  e.preventDefault();
+  e.returnValue = '';
+});
 document.addEventListener('visibilitychange', () => { if (document.hidden) game.save(); });
 
 // Accesos para depurar desde la consola.

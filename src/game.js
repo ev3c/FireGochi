@@ -1,14 +1,30 @@
 import * as THREE from 'three';
 import { FUELS, FUEL_ORDER, WET_LIMIT, WET_MOISTURE } from './sim/fuels.js';
-import { createSim, createItem, stepSim, computeCoupling, fireLevel, itemMassFraction, ensureNextId, douse } from './sim/combustion.js';
+import { createSim, createItem, stepSim, computeCoupling, fireLevel, itemMassFraction, ensureNextId, douseAt } from './sim/combustion.js';
 import { createFuelMesh, setBurnVisual, disposeFuelMesh } from './fuel/meshes.js';
 import { createBody, resizeBody } from './physics.js';
 import { BED, BOX } from './scene/layout.js';
+import { t, fuelShort } from './i18n.js';
 
 const SAVE_KEY = 'chimenea-tamagotchi-v1';
 const SIM_DT = 0.1;
 const WETTABLE = ['pinecone', 'kindling', 'pine_thin', 'pine', 'birch', 'oak', 'holm'];
 export const MATCH_BOX = { qty: 10, price: 6 };
+
+// Cómo se encuentra la persona según la temperatura de la sala (°C, límite inferior de cada tramo).
+export const BODY = [
+  { id: 'dead', min: 50, face: '💀' },
+  { id: 'heatstroke', min: 40, face: '😵' },
+  { id: 'veryhot', min: 35, face: '😰' },
+  { id: 'hot', min: 30, face: '🥵' },
+  { id: 'warm', min: 26, face: '😅' },
+  { id: 'comfy', min: 19, face: '😊' },
+  { id: 'cool', min: 16, face: '🙂' },
+  { id: 'cold', min: 10, face: '😬' },
+  { id: 'freezing', min: -Infinity, face: '🥶' },
+];
+export const bodyState = (room) => BODY.find((b) => room >= b.min);
+export const DEATH_TEMP = 50;
 
 export const ACHIEVEMENTS = [
   { id: 'first', name: 'Primera llama', desc: 'Prende algo en la chimenea.' },
@@ -153,6 +169,7 @@ export class Game {
 
   update(dt, time, input) {
     const st = this.state;
+    if (st.dead) return;
     this.phys.world.step(1 / 60, dt, 4);
 
     this.env.bellows = input.bellows;
@@ -248,6 +265,10 @@ export class Game {
     const Tout = this.outsideTemp();
     const Teq = Tout + 5 + this.sim.power * 3.2;
     st.room += (Teq - st.room) * (1 - Math.exp(-dt / 1200));
+    if (st.room >= DEATH_TEMP) {
+      st.dead = true;
+      return;
+    }
 
     this.level = fireLevel(this.sim);
     if (this.level.id === 'embers') {
@@ -274,7 +295,7 @@ export class Game {
     this.wasAlive = alive;
 
     const comfort = st.room >= 19 && st.room <= 25;
-    st.points += dt * ((alive ? 0.04 : 0) + (comfort ? 0.08 : 0) + (this.level.id === 'steady' || this.level.id === 'lively' ? 0.03 : 0));
+    st.points += dt * ((alive ? 0.012 : 0) + (comfort ? 0.025 : 0) + (this.level.id === 'steady' || this.level.id === 'lively' ? 0.01 : 0));
 
     if (s.aliveFor > 3600) this.unlock('hour');
     if (s.aliveFor > 8 * 3600) this.unlock('night');
@@ -301,7 +322,7 @@ export class Game {
         st.inventory[k]--;
         const dry = k.split(':')[0];
         st.inventory[dry] = (st.inventory[dry] || 0) + 1;
-        this.notify(`Un ${FUELS[dry].short.toLowerCase()} húmedo se ha secado junto al fuego.`, '☀️');
+        this.notify(t('dried', { name: fuelShort(dry).toLowerCase() }), '☀️');
       }
     }
 
@@ -310,7 +331,7 @@ export class Game {
     if (w.id && st.gameTime > w.until) {
       if (w.id === 'cold') st.coldSnapComfort = 0;
       w.id = null;
-      this.notify('El tiempo vuelve a la calma.', '🌤️');
+      this.notify(t('weather.calm'), '🌤️');
     }
     if (!w.id && st.gameTime > w.nextAt) {
       const ids = ['cold', 'rain', 'wind', 'gift', 'cold', 'rain'];
@@ -322,7 +343,7 @@ export class Game {
         w.id = id;
         w.until = st.gameTime + W.dur;
       }
-      this.notify(W.msg, W.icon);
+      this.notify(t(`weather.${id}.msg`), W.icon);
       w.nextAt = st.gameTime + W.dur + (15 + Math.random() * 25) * 60;
     }
   }
@@ -335,10 +356,9 @@ export class Game {
   unlock(id) {
     if (this.state.achievements[id]) return;
     this.state.achievements[id] = Date.now();
-    const a = ACHIEVEMENTS.find((x) => x.id === id);
-    this.state.points += 25;
+    this.state.points += 10;
     this.audio.chime();
-    this.notify(`Logro: ${a.name} (+25 ✨)`, '🏆');
+    this.notify(t('ach.unlock', { name: t(`ach.${id}.name`) }), '🏆');
   }
 
   // ---------- Visuales de las piezas ----------
@@ -397,15 +417,21 @@ export class Game {
     if (this.sim.bedGlow > 0.1) this.audio.crackle(1);
   }
 
-  splash() {
-    douse(this.sim);
-    this.audio.splash();
-    for (const e of this.entries.values()) {
-      const p = e.body.position;
-      for (let i = 0; i < 6; i++) this.smoke.emit(p.x, p.y, p.z, 0.85, 2.5, 0.5);
+  // Chorro del cubo sobre (x, z); dose son los litros vertidos en este paso.
+  pour(x, z, dose) {
+    const hit = douseAt(this.sim, x, z, 0.075, dose);
+    for (const { it, f, hot } of hit) {
+      const e = this.entries.get(it.id);
+      if (!e) continue;
+      if (it.moisture > WET_LIMIT) e.wasWet = true;
+      if (hot && Math.random() < f * dose * 60) {
+        const p = e.body.position;
+        this.smoke.emit(p.x + (Math.random() - 0.5) * 0.06, p.y + 0.02, p.z + (Math.random() - 0.5) * 0.06, 0.85, 1.6, 0.3);
+      }
     }
-    for (let i = 0; i < 40; i++) this.smoke.emit((Math.random() - 0.5) * 0.6, 0.05, BED.z, 0.85, 3, 0.4);
-    this.notify('Has apagado el fuego con agua. La leña ha quedado empapada.', '🪣');
+    const bedHot = this.sim.bedGlow > 0.05;
+    if (bedHot && Math.random() < dose * 25) this.smoke.emit(x, BED.y + 0.02, z, 0.85, 1.4, 0.3);
+    return hit.some((h) => h.hot) || bedHot;
   }
 
   buy(key, price, qty = 1) {
@@ -521,7 +547,7 @@ export class Game {
     const env = { ...this.env, bellows: 0, poke: 0, match: null };
     let t = 0;
     let wentOutAt = null;
-    while (t < maxS) {
+    while (t < maxS && !this.state.dead) {
       const busy = this.sim.items.some((i) => i.state !== 'cold') || this.sim.bedGlow > 0.002;
       const dt = !busy ? 30 : maxS > 3 * 3600 ? 4 : 1;
       env.Tamb = this.state.room;
@@ -530,6 +556,7 @@ export class Game {
       this.handleEvents(false);
       if (!this.sim.coupling) computeCoupling(this.sim);
       this.tickEconomy(dt);
+      if (this.state.dead) break;
       if (before.alive && wentOutAt === null && !this.isAlive()) wentOutAt = t;
       t += dt;
     }

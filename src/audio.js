@@ -47,6 +47,16 @@ export class FireAudio {
     this.steamGain.gain.value = 0;
     this.steam.connect(sf).connect(this.steamGain).connect(this.master);
 
+    // Chorro del cubo de agua.
+    this.pour = this.loop(this.noiseBuf);
+    this.pourFilter = ctx.createBiquadFilter();
+    this.pourFilter.type = 'bandpass';
+    this.pourFilter.frequency.value = 1100;
+    this.pourFilter.Q.value = 0.9;
+    this.pourGain = ctx.createGain();
+    this.pourGain.gain.value = 0;
+    this.pour.connect(this.pourFilter).connect(this.pourGain).connect(this.master);
+
     // Fuelle.
     this.bellows = this.loop(this.noiseBuf);
     this.bellowsFilter = ctx.createBiquadFilter();
@@ -218,13 +228,21 @@ export class FireAudio {
     });
   }
 
-  update(dt, { flame, power, steam, bellows, crackleRate, wind, rain }) {
+  setPour(flow, sizzle) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.pourGain.gain.setTargetAtTime(flow * 0.32, t, 0.06);
+    this.pourFilter.frequency.setTargetAtTime(900 + flow * 500 + Math.sin(t * 23) * 150, t, 0.05);
+    this.steamGain.gain.setTargetAtTime(Math.min(0.3, sizzle * 0.3), t, 0.1);
+  }
+
+  update(dt, { flame, power, steam, bellows, crackleRate, wind, rain, pouring }) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     this.roarGain.gain.setTargetAtTime(Math.min(0.5, power * 0.07 + flame * 0.03) * (1 + bellows * 0.8), t, 0.3);
     this.roarFilter.frequency.setTargetAtTime(250 + Math.min(flame, 6) * 60 + bellows * 300, t, 0.3);
     this.hissGain.gain.setTargetAtTime(Math.min(0.06, flame * 0.008), t, 0.3);
-    this.steamGain.gain.setTargetAtTime(Math.min(0.12, steam * 0.08), t, 0.3);
+    if (!pouring) this.steamGain.gain.setTargetAtTime(Math.min(0.12, steam * 0.08), t, 0.3);
     this.bellowsGain.gain.setTargetAtTime(bellows * 0.35, t, 0.08);
     this.bellowsFilter.frequency.setTargetAtTime(400 + bellows * 900, t, 0.1);
     this.windGain.gain.setTargetAtTime(wind * 0.18, t, 1.5);

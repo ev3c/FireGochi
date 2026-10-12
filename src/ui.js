@@ -1,17 +1,16 @@
 import { FUELS, FUEL_ORDER, WET_LIMIT } from './sim/fuels.js';
-import { ACHIEVEMENTS, MATCH_BOX } from './game.js';
+import { ACHIEVEMENTS, MATCH_BOX, BODY, bodyState } from './game.js';
+import { t, setLang, getLang, onLang, fuelName, fuelShort, fuelDesc } from './i18n.js';
 
-const MOOD = {
-  out: ['🥶', 'Apagado'], smoking: ['😣', 'Humeando'], choked: ['😵', 'Sofocado'], embers: ['😴', 'Brasas'],
-  weak: ['🥺', 'Débil'], steady: ['🙂', 'Estable'], lively: ['😊', 'Vivo'], roaring: ['🤩', 'Rugiente'],
-};
+const HEAT_RISK = ['hot', 'veryhot', 'heatstroke'];
+const SPEEDS = [1, 8, 16, 32, 64, 128, 256, 512, 1024];
 
 const TOOLS = [
-  { id: 'hand', icon: '✋', name: 'Mano', key: '1', tip: 'Arrastra para girar la vista en 3D (con cualquier herramienta: botón derecho) · rueda para acercar · doble clic o C para centrar · pasa el ratón sobre la leña para ver su estado.' },
-  { id: 'match', icon: '🔥', name: 'Cerilla', key: '2', tip: 'Clic para rascar una cerilla, acércala al papel y clic otra vez para soltarla.' },
-  { id: 'poker', icon: '🪝', name: 'Atizador', key: '3', tip: 'Arrastra troncos para recolocarlos. Remover aviva las brasas y abre paso al aire.' },
-  { id: 'bellows', icon: '💨', name: 'Fuelle', key: '4', tip: 'Mantén pulsado (o la barra espaciadora) para insuflar aire.' },
-  { id: 'water', icon: '🪣', name: 'Agua', key: '5', tip: 'Apaga el fuego de golpe (¡y empapa la leña!).' },
+  { id: 'hand', icon: '✋', key: '1' },
+  { id: 'match', icon: '🔥', key: '2' },
+  { id: 'poker', icon: '🪝', key: '3' },
+  { id: 'bellows', icon: '💨', key: '4' },
+  { id: 'water', icon: '🪣', key: '5' },
 ];
 
 function fmtDuration(s) {
@@ -33,6 +32,63 @@ export class UI {
     this.$('modal-close').onclick = () => this.closeModal();
     this.modal.addEventListener('pointerdown', (e) => { if (e.target === this.modal) this.closeModal(); });
     this.lastStatus = '';
+    this.view = null;
+    this.$('lang-switch').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-lang]');
+      if (b) setLang(b.dataset.lang);
+    });
+    onLang(() => this.onLanguage());
+    this.$('spd-down').onclick = () => this.stepSpeed(-1);
+    this.$('spd-up').onclick = () => this.stepSpeed(1);
+    this.applyChrome();
+  }
+
+  stepSpeed(dir) {
+    const st = this.game?.state;
+    if (!st) return;
+    const i = SPEEDS.indexOf(st.speed);
+    const cur = i >= 0 ? i : SPEEDS.findIndex((s) => s >= st.speed);
+    st.speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, cur + dir))];
+    this.refresh();
+    if (this.view === 'settings') this.openSettings();
+  }
+
+  applyChrome() {
+    document.documentElement.lang = getLang() === 'en' ? 'en' : 'es';
+    document.title = t('appTitle');
+    for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+    for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
+    for (const b of document.querySelectorAll('.lang-btn')) b.classList.toggle('on', b.dataset.lang === getLang());
+  }
+
+  onLanguage() {
+    this.applyChrome();
+    if (!this.game) return;
+    this.refreshToolLabels();
+    this.refreshInventory();
+    this.lastStatus = '';
+    this.refresh();
+    if (this.view) this.reopen();
+  }
+
+  reopen() {
+    const view = this.view;
+    if (view === 'shop') this.openShop();
+    else if (view === 'ach') this.openAchievements();
+    else if (view === 'help') this.openHelp();
+    else if (view === 'settings') this.openSettings();
+    else if (view === 'offline') this.showOffline(this.offlineReport);
+    else if (view === 'gameover') this.showGameOver();
+  }
+
+  refreshToolLabels() {
+    for (const tool of TOOLS) {
+      const b = document.querySelector(`[data-tool="${tool.id}"]`);
+      if (!b) continue;
+      b.querySelector('.nm').textContent = t(`tool.${tool.id}.name`);
+      b.title = `${t(`tool.${tool.id}.name`)} (${tool.key}) — ${t(`tool.${tool.id}.tip`)}`;
+    }
+    if (this.ix) this.setActiveTool(this.ix.tool, this.ix.placeKey);
   }
 
   bind(game, interaction) {
@@ -40,18 +96,18 @@ export class UI {
     this.ix = interaction;
     const tools = this.$('tools');
     tools.innerHTML = '';
-    for (const t of TOOLS) {
+    for (const tool of TOOLS) {
       const b = document.createElement('button');
       b.className = 'slot tool';
-      b.dataset.tool = t.id;
-      b.title = `${t.name} (${t.key}) — ${t.tip}`;
-      b.innerHTML = `<span class="ic">${t.icon}</span><span class="nm">${t.name}</span><span class="ct" id="ct-${t.id}"></span>`;
-      if (t.id === 'bellows') {
+      b.dataset.tool = tool.id;
+      b.title = `${t(`tool.${tool.id}.name`)} (${tool.key}) — ${t(`tool.${tool.id}.tip`)}`;
+      b.innerHTML = `<span class="ic">${tool.icon}</span><span class="nm">${t(`tool.${tool.id}.name`)}</span><span class="ct" id="ct-${tool.id}"></span>`;
+      if (tool.id === 'bellows') {
         b.addEventListener('pointerdown', () => { this.ix.audio.start(); this.ix.bellowsHeld = true; });
         b.addEventListener('pointerup', () => { this.ix.bellowsHeld = false; });
         b.addEventListener('pointerleave', () => { this.ix.bellowsHeld = false; });
       }
-      b.onclick = () => { this.ix.audio.start(); this.ix.setTool(this.ix.tool === t.id && t.id !== 'hand' ? 'hand' : t.id); };
+      b.onclick = () => { this.ix.audio.start(); this.ix.setTool(this.ix.tool === tool.id && tool.id !== 'hand' ? 'hand' : tool.id); };
       tools.appendChild(b);
     }
     this.$('btn-shop').onclick = () => this.openShop();
@@ -72,17 +128,17 @@ export class UI {
     const inv = this.game.state.inventory;
     const box = this.$('inventory');
     box.innerHTML = '';
-    for (const t of FUEL_ORDER) {
+    for (const id of FUEL_ORDER) {
       for (const wet of [false, true]) {
-        const key = wet ? `${t}:wet` : t;
+        const key = wet ? `${id}:wet` : id;
         const n = inv[key] || 0;
         if (wet && !n) continue;
-        const F = FUELS[t];
+        const F = FUELS[id];
         const b = document.createElement('button');
         b.className = 'slot fuel' + (n ? '' : ' empty') + (wet ? ' wet' : '');
         b.dataset.key = key;
-        b.title = `${F.name}${wet ? ' (húmedo)' : ''} — ${F.desc}${wet ? ' Está mojado: echará vapor y tardará en prender. Se secará solo si lo guardas mientras el fuego arde.' : ''}`;
-        b.innerHTML = `<span class="ic sp-${F.species || t}">${F.icon}</span><span class="nm">${F.short}${wet ? ' 💧' : ''}</span><span class="ct">${n}</span>`;
+        b.title = `${fuelName(id)}${wet ? t('wetParen') : ''} — ${fuelDesc(id)}${wet ? t('wetNote') : ''}`;
+        b.innerHTML = `<span class="ic sp-${F.species || id}">${F.icon}</span><span class="nm">${fuelShort(id)}${wet ? ' 💧' : ''}</span><span class="ct">${n}</span>`;
         b.onclick = () => {
           this.ix.audio.start();
           if (!n) { this.openShop(); return; }
@@ -101,10 +157,10 @@ export class UI {
     });
     const hint = this.$('hint');
     if (tool === 'place') {
-      const F = FUELS[key.split(':')[0]];
-      hint.textContent = `Apunta dónde dejar ${F.short.toLowerCase()} y haz clic · rueda o R para girar · clic derecho o Esc para cancelar`;
+      const id = key.split(':')[0];
+      hint.textContent = t('hint.place', { name: fuelShort(id).toLowerCase() });
     } else {
-      hint.textContent = (TOOLS.find((t) => t.id === tool) || TOOLS[0]).tip;
+      hint.textContent = t(`tool.${tool || 'hand'}.tip`);
     }
   }
 
@@ -113,26 +169,28 @@ export class UI {
     const lv = g.level.id;
     const steaming = g.sim.items.some((i) => i.steam > 0.05 && i.moisture > WET_LIMIT);
     const rem = g.remainingMinutes();
-    if (this.ix.match) return 'La cerilla arde: acércala al papel o a una piña antes de que se consuma.';
+    const body = bodyState(g.state.room).id;
+    if (HEAT_RISK.includes(body)) return t(`body.${body}.risk`, { temp: g.state.room.toFixed(1) });
+    if (this.ix.match) return t('status.match');
     switch (lv) {
       case 'out':
-        if (g.entries.size === 0) return 'La chimenea está fría. Pon papel bajo la parrilla, astillas encima y enciéndelo con una cerilla.';
-        return 'El fuego está apagado. Asegúrate de tener papel y astillas debajo de los troncos y usa una cerilla.';
+        if (g.entries.size === 0) return t('status.outEmpty');
+        return t('status.out');
       case 'smoking':
-        return steaming ? 'La leña húmeda silba y echa vapor, pero no prende. Necesita más calor debajo.' : 'Hay humo pero no llama: falta calor. Añade papel o astillas y sopla con el fuelle.';
+        return steaming ? t('status.smokingWet') : t('status.smoking');
       case 'choked':
-        return '¡Se está ahogando! Demasiada leña y poco aire: usa el fuelle o separa los troncos con el atizador.';
+        return t('status.choked');
       case 'embers':
-        return 'Solo quedan brasas. Añade astillas o una rama encima y sopla con el fuelle para reavivarlo.';
+        return t('status.embers');
       case 'weak':
-        if (steaming) return 'La leña húmeda está robando calor al fuego mientras se seca.';
-        return rem < 4 ? 'Las llamas se debilitan: añade leña pronto.' : 'El fuego es débil. Los troncos gruesos necesitan más calor: añade astillas o ramas.';
+        if (steaming) return t('status.weakWet');
+        return rem < 4 ? t('status.weakSoon') : t('status.weak');
       default:
-        if (steaming) return 'La leña húmeda silba y echa vapor mientras se seca.';
-        if (rem < 6) return `Queda leña para unos ${Math.max(1, Math.round(rem))} minutos. Prepara el siguiente tronco.`;
-        if (g.state.room < 17) return `El fuego va bien, pero la sala aún está fría (${g.state.room.toFixed(1)} °C).`;
-        if (lv === 'roaring') return 'Fuego rugiente. ¡Qué espectáculo! Vigila que no se acabe la leña.';
-        return 'El fuego está a gusto y la casa, calentita.';
+        if (steaming) return t('status.steam');
+        if (rem < 6) return t('status.rem', { n: Math.max(1, Math.round(rem)) });
+        if (g.state.room < 17) return t('status.coldRoom', { temp: g.state.room.toFixed(1) });
+        if (lv === 'roaring') return t('status.roaring');
+        return t('status.good');
     }
   }
 
@@ -141,16 +199,19 @@ export class UI {
     if (!g) return;
     const st = g.state;
     const lv = g.level.id;
-    const [face, label] = MOOD[lv];
-    this.$('mood').textContent = face;
-    this.$('level').textContent = label;
+    const body = bodyState(st.room);
+    this.$('mood').textContent = body.face;
+    this.$('mood').title = `${t(`body.${body.id}.name`)} (${st.room.toFixed(1)} °C)${HEAT_RISK.includes(body.id) ? ` — ${t(`body.${body.id}.risk`, { temp: st.room.toFixed(1) })}` : ''}`;
+    this.$('mood').classList.toggle('danger', HEAT_RISK.includes(body.id));
+    this.warnBody(body);
+    this.$('level').textContent = t(`mood.${lv}`);
     this.$('bar-fire').style.width = `${Math.min(100, (g.sim.power / 5) * 100)}%`;
     this.$('bar-air').style.width = `${Math.round(g.sim.o2 * 100)}%`;
     this.$('bar-air').classList.toggle('bad', g.sim.o2 < 0.6);
     this.$('room').textContent = `${st.room.toFixed(1)} °C`;
     const w = g.weatherInfo();
     this.$('outside').textContent = `${g.outsideTemp().toFixed(0)} °C ${w ? w.icon : ''}`;
-    this.$('outside').title = w ? w.name : 'Tiempo tranquilo';
+    this.$('outside').title = w ? t(`weather.${st.weather.id}.name`) : t('weather.calmName');
     this.$('alive').textContent = g.isAlive() ? fmtDuration(st.stats.aliveFor) : '—';
     this.$('best').textContent = fmtDuration(st.stats.bestStreak);
     this.$('points').textContent = Math.floor(st.points);
@@ -161,11 +222,43 @@ export class UI {
       this.$('status').textContent = status;
     }
     const gs = g.gardenStatus();
-    this.$('btn-garden').textContent = gs > 0 ? `🌲 ${Math.ceil(gs / 60000)} min` : '🌲 Jardín';
+    this.$('btn-garden').textContent = gs > 0 ? `🌲 ${Math.ceil(gs / 60000)} min` : t('nav.garden');
     this.$('btn-garden').classList.toggle('ready', gs <= 0);
     this.$('btn-sound').textContent = st.sound ? '🔊' : '🔇';
-    this.$('speed').textContent = st.speed > 1 ? `⏩ x${st.speed}` : '';
+    this.$('spd-val').textContent = `x${st.speed}`;
+    this.$('spd-down').disabled = st.speed <= SPEEDS[0];
+    this.$('spd-up').disabled = st.speed >= SPEEDS[SPEEDS.length - 1];
     document.body.style.setProperty('--haze', String(Math.min(0.55, g.roomSmoke)));
+  }
+
+  warnBody(body) {
+    const rank = BODY.length - BODY.indexOf(body);
+    const prev = this.bodyRank ?? rank;
+    this.bodyRank = rank;
+    if (this.game.state.dead) {
+      if (this.view !== 'gameover') this.showGameOver();
+      return;
+    }
+    if (rank > prev && HEAT_RISK.includes(body.id)) {
+      this.toast(t(`body.${body.id}.risk`, { temp: this.game.state.room.toFixed(1) }), body.face);
+    }
+  }
+
+  showGameOver() {
+    this.view = 'gameover';
+    const st = this.game.state;
+    this.openModal(t('over.title'), `<p>${t('over.body', { temp: st.room.toFixed(1) })}</p>
+      <p class="muted">${t('ach.summary', { best: fmtDuration(st.stats.bestStreak), total: fmtDuration(st.stats.totalAlive), matches: st.stats.matchesTotal || 0 })}</p>
+      <div class="row-btns"><button class="btn danger" id="over-reset">${t('over.reset')}</button></div>`);
+    this.$('over-reset').onclick = () => {
+      this.game.reset();
+      this.bodyRank = undefined;
+      this.view = null;
+      this.closeModal();
+      this.refreshInventory();
+      this.refresh();
+      this.toast(t('toast.newGame'), '🔥');
+    };
   }
 
   showTip(px, html) {
@@ -192,33 +285,30 @@ export class UI {
   openModal(title, html) {
     this.$('modal-title').textContent = title;
     this.modalBody.innerHTML = html;
+    this.$('modal-close').hidden = this.view === 'gameover';
     this.modal.classList.add('open');
   }
 
   closeModal() {
+    if (this.view === 'gameover' && this.game?.state.dead) return;
+    this.view = null;
     this.modal.classList.remove('open');
   }
 
-  confirmWater(onYes) {
-    this.openModal('¿Apagar con agua?', `<p>Vas a echar un cubo de agua sobre el fuego. Se apagará al momento y toda la leña quedará empapada.</p>
-      <div class="row-btns"><button class="btn danger" id="w-yes">🪣 Sí, apagarlo</button><button class="btn" id="w-no">Cancelar</button></div>`);
-    this.$('w-yes').onclick = () => { this.closeModal(); onYes(); this.ix.setTool('hand'); };
-    this.$('w-no').onclick = () => this.closeModal();
-  }
-
   openShop() {
+    this.view = 'shop';
     const g = this.game;
-    const rows = FUEL_ORDER.map((t) => {
-      const F = FUELS[t];
-      return `<div class="shop-row"><span class="ic">${F.icon}</span><div class="info"><b>${F.name}</b><small>${F.desc}</small></div>
-        <span class="have">Tienes ${g.state.inventory[t] || 0}</span>
-        <button class="btn buy" data-k="${t}" data-p="${F.price}" data-q="1">1 · ${F.price} ✨</button>
-        <button class="btn buy" data-k="${t}" data-p="${F.price * 4}" data-q="5">5 · ${F.price * 4} ✨</button></div>`;
+    const rows = FUEL_ORDER.map((id) => {
+      const F = FUELS[id];
+      return `<div class="shop-row"><span class="ic">${F.icon}</span><div class="info"><b>${fuelName(id)}</b><small>${fuelDesc(id)}</small></div>
+        <span class="have">${t('shop.have', { n: g.state.inventory[id] || 0 })}</span>
+        <button class="btn buy" data-k="${id}" data-p="${F.price}" data-q="1">1 · ${F.price} ✨</button>
+        <button class="btn buy" data-k="${id}" data-p="${F.price * 4}" data-q="5">5 · ${F.price * 4} ✨</button></div>`;
     }).join('');
-    this.openModal('🛒 Tienda de leña', `<p class="muted">Tienes <b>${Math.floor(g.state.points)} ✨</b> puntos de calor. Se ganan manteniendo el fuego vivo y la casa caliente.</p>
+    this.openModal(t('shop.title'), `<p class="muted">${t('shop.intro', { n: Math.floor(g.state.points) })}</p>
       <div class="shop">${rows}
-      <div class="shop-row"><span class="ic">🔥</span><div class="info"><b>Caja de cerillas</b><small>${MATCH_BOX.qty} cerillas de madera.</small></div>
-      <span class="have">Tienes ${g.state.matches}</span>
+      <div class="shop-row"><span class="ic">🔥</span><div class="info"><b>${t('shop.matches')}</b><small>${t('shop.matchesDesc', { n: MATCH_BOX.qty })}</small></div>
+      <span class="have">${t('shop.have', { n: g.state.matches })}</span>
       <button class="btn buy" data-k="matches" data-p="${MATCH_BOX.price}" data-q="${MATCH_BOX.qty}">${MATCH_BOX.qty} · ${MATCH_BOX.price} ✨</button><span></span></div></div>`);
     this.modalBody.querySelectorAll('.buy').forEach((b) => {
       b.disabled = g.state.points < Number(b.dataset.p);
@@ -234,77 +324,63 @@ export class UI {
   gather() {
     const loot = this.game.gatherGarden();
     if (!loot) {
-      this.toast(`Ya has recogido leña hace poco. Vuelve en ${Math.ceil(this.game.gardenStatus() / 60000)} min.`, '🌲');
+      this.toast(t('toast.gardenWait', { min: Math.ceil(this.game.gardenStatus() / 60000) }), '🌲');
       return;
     }
     const list = Object.entries(loot).map(([k, n]) => {
-      const [t, wet] = k.split(':');
-      return `${n} × ${FUELS[t].short.toLowerCase()}${wet ? ' húmedo' : ''}`;
+      const [id, wet] = k.split(':');
+      return `${n} × ${fuelShort(id).toLowerCase()}${wet ? ` ${t('wet')}` : ''}`;
     }).join(', ');
-    this.toast(`Has recogido en el jardín: ${list}.`, '🌲');
+    this.toast(t('toast.garden', { list }), '🌲');
     this.refreshInventory();
   }
 
   openAchievements() {
+    this.view = 'ach';
     const a = this.game.state.achievements;
-    const html = ACHIEVEMENTS.map((x) => `<div class="ach ${a[x.id] ? 'done' : ''}"><span>${a[x.id] ? '🏆' : '🔒'}</span><div><b>${x.name}</b><small>${x.desc}</small></div></div>`).join('');
+    const html = ACHIEVEMENTS.map((x) => `<div class="ach ${a[x.id] ? 'done' : ''}"><span>${a[x.id] ? '🏆' : '🔒'}</span><div><b>${t(`ach.${x.id}.name`)}</b><small>${t(`ach.${x.id}.desc`)}</small></div></div>`).join('');
     const s = this.game.state.stats;
-    this.openModal('🏆 Logros', `<div class="achs">${html}</div>
-      <p class="muted">Mejor racha: ${fmtDuration(s.bestStreak)} · Tiempo total de fuego: ${fmtDuration(s.totalAlive)} · Cerillas usadas: ${s.matchesTotal || 0}</p>`);
+    this.openModal(t('ach.title'), `<div class="achs">${html}</div>
+      <p class="muted">${t('ach.summary', { best: fmtDuration(s.bestStreak), total: fmtDuration(s.totalAlive), matches: s.matchesTotal || 0 })}</p>`);
   }
 
   openHelp() {
-    this.openModal('🔥 Cómo cuidar tu chimenea', `
-      <p>Tu fuego es como una mascota: tienes que <b>encenderlo</b>, <b>alimentarlo</b> y <b>vigilarlo</b>. El tiempo sigue corriendo aunque cierres la página: si no hay leña, se apagará.</p>
-      <h4>Encender como en la vida real</h4>
-      <ol>
-        <li>Pon 1–2 bolas de <b>papel</b> en el suelo, bajo la parrilla (apunta entre los barrotes).</li>
-        <li>Encima, sobre la parrilla, un par de manojos de <b>astillas</b> o unas <b>piñas</b>.</li>
-        <li>Después, <b>ramas</b> y por último uno o dos <b>troncos</b>.</li>
-        <li>Rasca una <b>cerilla</b> y acércala al papel. Una cerilla no puede prender un tronco por sí sola.</li>
-      </ol>
-      <h4>Mantenerlo</h4>
-      <ul>
-        <li>Los troncos juntos se dan calor entre sí; uno solo tiende a apagarse.</li>
-        <li>Demasiada leña <b>ahoga</b> el fuego: verás humo. Usa el <b>fuelle</b> o separa troncos con el <b>atizador</b>.</li>
-        <li>Las <b>brasas</b> duran mucho: con astillas y el fuelle puedes reavivar el fuego sin cerillas.</li>
-        <li>La leña <b>húmeda</b> echa vapor y tarda en prender. La guardada se seca sola si el fuego arde.</li>
-        <li>El pino da llama viva y chispas; el roble y la encina, calor y brasas durante horas.</li>
-      </ul>
-      <h4>Controles</h4>
-      <p class="muted">Arrastrar con la mano o con el botón derecho: girar la vista 3D · Rueda: acercar (o girar la pieza que llevas) · Doble clic o C: centrar vista.</p>
-      <p class="muted">1–5 herramientas · Espacio: fuelle · R: girar la pieza · Clic derecho/Esc: soltar herramienta.</p>
-      <p class="muted">Ganas puntos ✨ con el fuego encendido y la casa entre 19 y 25 °C. Úsalos en la tienda. El jardín te da leña gratis cada pocos minutos.</p>`);
+    this.view = 'help';
+    this.openModal(t('help.title'), t('help.body'));
   }
 
   openSettings() {
+    this.view = 'settings';
     const st = this.game.state;
-    this.openModal('⚙️ Ajustes', `
-      <p><b>Ritmo del tiempo</b> <span class="muted">(acelera la combustión para jugar más rápido)</span></p>
-      <div class="row-btns">${[1, 2, 5, 10].map((s) => `<button class="btn spd ${st.speed === s ? 'on' : ''}" data-s="${s}">x${s}</button>`).join('')}</div>
-      <p><b>Partida</b></p>
-      <div class="row-btns"><button class="btn danger" id="reset">Empezar de cero</button></div>`);
+    this.openModal(t('settings.title'), `
+      <p><b>${t('settings.time')}</b> <span class="muted">${t('settings.timeHint')}</span></p>
+      <div class="row-btns">${SPEEDS.map((s) => `<button class="btn spd ${st.speed === s ? 'on' : ''}" data-s="${s}">x${s}</button>`).join('')}</div>
+      <p><b>${t('settings.game')}</b></p>
+      <div class="row-btns"><button class="btn danger" id="reset">${t('settings.reset')}</button></div>`);
     this.modalBody.querySelectorAll('.spd').forEach((b) => {
       b.onclick = () => { st.speed = Number(b.dataset.s); this.openSettings(); this.refresh(); };
     });
     this.$('reset').onclick = () => {
-      if (!confirm('¿Seguro? Se borrará todo tu progreso.')) return;
+      if (!confirm(t('settings.confirm'))) return;
       this.game.reset();
+      this.bodyRank = undefined;
       this.closeModal();
       this.refreshInventory();
-      this.toast('Partida nueva. ¡A encender la chimenea!', '🔥');
+      this.toast(t('toast.newGame'), '🔥');
     };
   }
 
   showOffline(r) {
+    this.view = 'offline';
+    this.offlineReport = r;
     let txt;
-    if (!r.wasAlive) txt = 'La chimenea seguía apagada.';
-    else if (r.aliveNow) txt = '¡El fuego ha aguantado! Sigue vivo.';
-    else txt = `El fuego se apagó hace ${fmtDuration(r.wentOutAgo)}.`;
-    this.openModal('🕰️ Mientras no estabas…', `<p>Has estado fuera <b>${fmtDuration(r.seconds)}</b>.</p><p>${txt}</p>
-      ${r.consumed > 0 ? `<p>Se han consumido ${r.consumed} piezas de leña.</p>` : ''}
-      ${r.pointsGained >= 1 ? `<p>Has ganado <b>${Math.floor(r.pointsGained)} ✨</b>.</p>` : ''}
-      <div class="row-btns"><button class="btn" id="off-ok">Volver junto al fuego</button></div>`);
+    if (!r.wasAlive) txt = t('offline.dead');
+    else if (r.aliveNow) txt = t('offline.alive');
+    else txt = t('offline.outAgo', { time: fmtDuration(r.wentOutAgo) });
+    this.openModal(t('offline.title'), `<p>${t('offline.away', { time: fmtDuration(r.seconds) })}</p><p>${txt}</p>
+      ${r.consumed > 0 ? `<p>${t('offline.consumed', { n: r.consumed })}</p>` : ''}
+      ${r.pointsGained >= 1 ? `<p>${t('offline.points', { n: Math.floor(r.pointsGained) })}</p>` : ''}
+      <div class="row-btns"><button class="btn" id="off-ok">${t('offline.back')}</button></div>`);
     this.$('off-ok').onclick = () => this.closeModal();
   }
 }

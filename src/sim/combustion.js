@@ -333,16 +333,29 @@ export function stepSim(sim, dt, env) {
   sim.steamTotal = steamTotal;
 }
 
-export function douse(sim) {
+// Agua que cae en vertical sobre (x, z): solo enfría y moja lo que queda debajo del chorro.
+// dose ≈ litros vertidos en este paso. Devuelve las piezas alcanzadas.
+export function douseAt(sim, x, z, radius, dose) {
+  const hit = [];
   for (const it of sim.items) {
-    it.T = 30;
-    it.moisture = Math.min(0.6, it.moisture + 0.35);
-    if (it.state !== 'ember') it.state = 'cold';
-    it.flame = 0;
-    it.glow = 0;
+    const s = it.seg;
+    const flat = { ax: s.ax, ay: 0, az: s.az, bx: s.bx, by: 0, bz: s.bz, r: s.r };
+    const d = Math.max(0, pointSegDist(x, 0, z, flat));
+    const f = clamp(1 - d / radius, 0, 1);
+    if (f <= 0) continue;
+    const k = clamp(dose * f * 2.6, 0, 1);
+    hit.push({ it, f, hot: it.T > 110 });
+    it.T += (25 - it.T) * k;
+    it.moisture = Math.min(0.6, it.moisture + dose * f * 0.45);
+    it.flame *= 1 - k;
+    it.glow *= 1 - k;
+    if (it.state === 'smolder' && it.T < 180) it.state = 'cold';
   }
-  sim.bedHeat = 0;
-  sim.bedGlow = 0;
+  // El lecho de brasas recibe el agua que escurre; se enfría poco a poco, no de golpe.
+  const bedK = Math.exp(-dose * 0.3);
+  sim.bedHeat *= bedK;
+  sim.bedGlow *= bedK;
+  return hit;
 }
 
 export function fireLevel(sim) {

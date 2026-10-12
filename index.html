@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>La Chimenea — cuida tu fuego</title>
+  <title>FireGochi — Cuida tu fuego</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
   <link rel="stylesheet" href="src/style.css" />
   <script type="importmap">
@@ -20,34 +20,45 @@
   <canvas id="scene"></canvas>
 
   <div id="hud" class="panel">
+    <div id="brand">
+      <span class="brand-name">🔥 FireGochi <span class="ver">v1.08</span></span>
+      <span id="lang-switch" class="lang-switch">
+        <button type="button" class="lang-btn" data-lang="es" title="Español">ES</button>
+        <button type="button" class="lang-btn" data-lang="en" title="English">EN</button>
+      </span>
+    </div>
     <div class="hud-top">
       <span id="mood">🥶</span>
       <div>
-        <div class="lbl">Fuego</div>
+        <div class="lbl" data-i18n="hud.fire">Fuego</div>
         <div id="level">Apagado</div>
       </div>
-      <div class="pts" title="Puntos de calor"><span id="points">0</span> ✨</div>
+      <div class="pts" data-i18n-title="hud.pointsTip" title="Puntos de calor"><span id="points">0</span> ✨</div>
     </div>
-    <div class="bar-row"><span>Llama</span><div class="bar"><i id="bar-fire"></i></div></div>
-    <div class="bar-row"><span>Aire</span><div class="bar air"><i id="bar-air"></i></div></div>
+    <div class="bar-row"><span data-i18n="hud.flame">Llama</span><div class="bar"><i id="bar-fire"></i></div></div>
+    <div class="bar-row"><span data-i18n="hud.air">Aire</span><div class="bar air"><i id="bar-air"></i></div></div>
     <div class="grid">
-      <span>🏠 Sala</span><b id="room">—</b>
-      <span>🌙 Fuera</span><b id="outside">—</b>
-      <span>⏱️ Encendido</span><b id="alive">—</b>
-      <span>🏅 Récord</span><b id="best">—</b>
+      <span data-i18n="hud.room">🏠 Sala</span><b id="room">—</b>
+      <span data-i18n="hud.outside">🌙 Fuera</span><b id="outside">—</b>
+      <span data-i18n="hud.alive">⏱️ Encendido</span><b id="alive">—</b>
+      <span data-i18n="hud.best">🏅 Récord</span><b id="best">—</b>
     </div>
-    <div id="speed"></div>
+    <div id="speed">
+      <button type="button" class="spd-btn" id="spd-down" data-i18n-title="hud.slower" title="Más lento">«</button>
+      <span class="spd-mid"><span data-i18n="settings.time">Ritmo del tiempo</span> <b id="spd-val">x1</b></span>
+      <button type="button" class="spd-btn" id="spd-up" data-i18n-title="hud.faster" title="Más rápido">»</button>
+    </div>
   </div>
 
   <div id="status" class="panel"></div>
 
   <div id="topbar">
-    <button class="btn" id="btn-garden" title="Recoge leña gratis del jardín cada pocos minutos">🌲 Jardín</button>
-    <button class="btn" id="btn-shop" title="Compra leña y cerillas con puntos de calor">🛒 Tienda</button>
-    <button class="btn" id="btn-ach" title="Logros">🏆</button>
-    <button class="btn" id="btn-help" title="Ayuda">❔</button>
-    <button class="btn" id="btn-sound" title="Sonido">🔊</button>
-    <button class="btn" id="btn-settings" title="Ajustes">⚙️</button>
+    <button class="btn" id="btn-garden" data-i18n-title="nav.gardenTip" title="Recoge leña gratis del jardín cada pocos minutos">🌲 Jardín</button>
+    <button class="btn" id="btn-shop" data-i18n="nav.shop" data-i18n-title="nav.shopTip" title="Compra leña y cerillas con puntos de calor">🛒 Tienda</button>
+    <button class="btn" id="btn-ach" data-i18n-title="nav.achTip" title="Logros">🏆</button>
+    <button class="btn" id="btn-help" data-i18n-title="nav.helpTip" title="Ayuda">❔</button>
+    <button class="btn" id="btn-sound" data-i18n-title="nav.soundTip" title="Sonido">🔊</button>
+    <button class="btn" id="btn-settings" data-i18n-title="nav.settingsTip" title="Ajustes">⚙️</button>
   </div>
 
   <div id="bottom">
@@ -69,7 +80,7 @@
     </div>
   </div>
 
-  <noscript>Este juego necesita JavaScript.</noscript>
+  <noscript>Este juego necesita JavaScript. This game needs JavaScript.</noscript>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

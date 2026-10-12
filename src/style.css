@@ -48,15 +48,33 @@ html, body {
 .btn.ready { border-color: #8fd18a; box-shadow: 0 0 10px rgba(143, 209, 138, 0.35); }
 
 #hud {
-  position: fixed; top: 12px; left: 12px; width: 236px; padding: 12px 14px; font-size: 13px;
+  position: fixed; top: 12px; left: 12px; width: 248px; padding: 12px 14px; font-size: 13px;
 }
+#brand {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  font-size: 15px; font-weight: 700;
+  margin-bottom: 8px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.brand-name { white-space: nowrap; }
+#brand .ver { font-weight: 500; font-size: 12px; color: var(--muted); }
+.lang-switch { display: flex; gap: 2px; flex-shrink: 0; }
+.lang-btn {
+  appearance: none; background: transparent; color: var(--muted);
+  border: 1px solid transparent; border-radius: 6px;
+  padding: 1px 5px; font: 700 11px/1.4 inherit; letter-spacing: 0.04em; cursor: pointer;
+}
+.lang-btn.on { color: var(--text); background: rgba(255, 154, 60, 0.2); border-color: var(--border); }
+.lang-btn:hover { color: var(--text); }
 .hud-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-#mood { font-size: 34px; line-height: 1; }
+#mood { font-size: 34px; line-height: 1; cursor: help; }
+#mood.danger { animation: heat-pulse 1.2s ease-in-out infinite; }
+@keyframes heat-pulse { 50% { transform: scale(1.12); filter: drop-shadow(0 0 6px #ff5a2a); } }
 .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 #level { font-size: 18px; font-weight: 600; }
 .pts { margin-left: auto; font-size: 17px; font-weight: 600; color: #ffd27a; }
 .bar-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
-.bar-row span { width: 42px; color: var(--muted); font-size: 12px; }
+.bar-row span { width: 46px; color: var(--muted); font-size: 12px; }
 .bar { flex: 1; height: 8px; background: rgba(255, 255, 255, 0.08); border-radius: 6px; overflow: hidden; }
 .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #9b2a0a, #ff7a1a, #ffd36a); transition: width 0.4s; }
 .bar.air i { background: linear-gradient(90deg, #3d6b8a, #8cc7e8); }
@@ -64,7 +82,16 @@ html, body {
 .grid { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin-top: 8px; }
 .grid span { color: var(--muted); }
 .grid b { text-align: right; font-weight: 600; }
-#speed { margin-top: 6px; color: #ffd27a; font-size: 12px; text-align: right; }
+#speed { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 12px; }
+#speed .spd-mid { flex: 1; text-align: center; color: var(--muted); white-space: nowrap; }
+#speed .spd-mid b { color: #ffd27a; font-weight: 700; }
+.spd-btn {
+  width: 26px; height: 22px; padding: 0; border-radius: 6px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.06);
+  color: var(--text); font-size: 14px; font-weight: 700; line-height: 1;
+}
+.spd-btn:hover:not(:disabled) { background: rgba(255, 190, 110, 0.18); border-color: rgba(255, 190, 110, 0.4); }
+.spd-btn:disabled { opacity: 0.3; cursor: default; }
 
 #status {
   position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
@@ -144,7 +171,7 @@ html, body {
 
 @media (max-width: 900px) {
   #status { top: auto; bottom: 120px; max-width: calc(100vw - 24px); font-size: 13px; }
-  #hud { width: 190px; font-size: 12px; padding: 8px 10px; }
+  #hud { width: 220px; font-size: 12px; padding: 8px 10px; }
   #topbar .btn { padding: 6px 8px; }
   .slot { width: 56px; min-width: 56px; height: 58px; }
   .achs { grid-template-columns: 1fr; }

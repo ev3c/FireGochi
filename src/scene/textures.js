@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { fbm, valueNoise, makeVoronoi, mulberry32, clamp01, smoothstep, lerp } from '../util/noise.js';
+import { getLang } from '../i18n.js';
 
 // Texturas generadas por código: no hace falta ningún archivo de imagen.
 
@@ -315,7 +316,8 @@ export function crackTexture() {
 
 // Papel de periódico con columnas de texto y algún titular.
 export function newspaperTexture(seed = 1) {
-  return cached('paper-' + seed, () => {
+  const en = getLang() === 'en';
+  return cached(`paper-${en ? 'en' : 'es'}-${seed}`, () => {
     const c = document.createElement('canvas');
     c.width = c.height = 512;
     const ctx = c.getContext('2d');
@@ -324,9 +326,9 @@ export function newspaperTexture(seed = 1) {
     const rnd = mulberry32(seed * 101);
     ctx.fillStyle = '#2a2724';
     ctx.font = 'bold 44px Georgia, serif';
-    ctx.fillText('EL DIARIO', 30, 60);
+    ctx.fillText(en ? 'THE DAILY' : 'EL DIARIO', 30, 60);
     ctx.font = 'bold 22px Georgia, serif';
-    ctx.fillText('Llega el frío: noches bajo cero', 30, 100);
+    ctx.fillText(en ? 'Cold nights ahead: below zero' : 'Llega el frío: noches bajo cero', 30, 100);
     for (let col = 0; col < 4; col++) {
       for (let line = 0; line < 30; line++) {
         const x = 20 + col * 124;

@@ -1,0 +1,14 @@
+---
+description: Subir la versión de FireGochi en cada petición
+alwaysApply: true
+---
+
+# Versión de la app
+
+Con cada petición del usuario que cambie el juego, sube la versión en 0.01.
+
+- La versión se muestra en `index.html`, dentro de `#brand`: `<span class="ver">v1.01</span>`.
+- Ejemplo: `v1.01` → `v1.02` → … → `v1.09` → `v1.10`.
+- Usa siempre dos decimales.
+- Si en la misma petición el usuario pide una versión concreta, usa esa.
+- Di en la respuesta a qué versión ha subido.
