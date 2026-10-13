@@ -29,7 +29,7 @@ function sootyBrick(kind, sootStrength) {
           float back = smoothstep(-0.1, -0.42, vWPos.z) * 0.4 + 0.6;
           float soot = clamp((plume * 0.85 + top * 0.6) * back, 0.0, 1.0) * uSoot;
           float speck = fract(sin(dot(floor(vWPos.xy * 160.0), vec2(12.9898, 78.233))) * 43758.5453);
-          diffuseColor.rgb *= mix(1.0, 0.12 + speck * 0.06, soot);
+          diffuseColor.rgb *= mix(1.0, 0.62 + speck * 0.06, soot);
           float lowAsh = (1.0 - smoothstep(0.0, 0.08, vWPos.y));
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.32, 0.3, 0.28), lowAsh * 0.5);`
         );

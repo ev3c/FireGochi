@@ -182,3 +182,27 @@ html, body {
   .achs { grid-template-columns: 1fr; }
   #toasts { top: 96px; width: 260px; }
 }
+
+@media (max-width: 540px) {
+  #hud {
+    top: 8px; left: 8px; width: 158px; font-size: 11px; padding: 6px 8px; border-radius: 12px;
+  }
+  #brand { font-size: 12px; gap: 4px; margin-bottom: 5px; padding-bottom: 5px; }
+  #brand .ver { font-size: 10px; }
+  .lang-btn { font-size: 10px; padding: 0 3px; }
+  .hud-top { gap: 6px; margin-bottom: 4px; }
+  #mood { font-size: 22px; }
+  .lbl { font-size: 9px; letter-spacing: 0.04em; }
+  #level { font-size: 14px; }
+  .pts { font-size: 13px; }
+  .bar-row { gap: 4px; margin: 3px 0; }
+  .bar-row span { width: 34px; font-size: 10px; }
+  .bar { height: 6px; }
+  .grid { gap: 1px 6px; margin-top: 4px; }
+  #speed { gap: 3px; margin-top: 4px; padding-top: 4px; font-size: 9px; }
+  .spd-btn { width: 18px; height: 16px; font-size: 11px; border-radius: 4px; }
+
+  #topbar { top: 8px; right: 8px; gap: 4px; }
+  .topbar-row { gap: 4px; }
+  #topbar .btn { padding: 3px 6px; font-size: 11px; border-radius: 8px; line-height: 1.3; }
+}

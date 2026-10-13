@@ -80,16 +80,16 @@ export function brickTextures(kind = 'refractory') {
           let r, g, b, h;
           if (edge < joint) {
             const m = 0.45 + n * 0.35;
-            if (kind === 'refractory') { r = 58 * m; g = 44 * m; b = 34 * m; }
+            if (kind === 'refractory') { r = 96 * m; g = 86 * m; b = 72 * m; }
             else { r = 95 * m; g = 88 * m; b = 80 * m; }
             h = 0.15 * smoothstep(0, joint, edge);
           } else {
             const bevel = smoothstep(joint, joint + 10, edge);
             const shade = (0.78 + 0.22 * bevel) * (0.8 + n * 0.3 + (fine - 0.5) * 0.14) * pits * (1 - stain * 0.3);
             if (kind === 'refractory') {
-              r = (166 + tint[0] * 34) * shade;
-              g = (124 + tint[1] * 26) * shade;
-              b = (86 + tint[2] * 20) * shade;
+              r = (236 + tint[0] * 16) * shade;
+              g = (208 + tint[1] * 14) * shade;
+              b = (172 + tint[2] * 12) * shade;
             } else {
               r = (128 + tint[0] * 45) * shade;
               g = (58 + tint[1] * 22) * shade;
