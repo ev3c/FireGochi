@@ -5,13 +5,14 @@ import { BED } from '../scene/layout.js';
 
 // Traduce el estado de la simulación a llamas, luces, humo y chispas.
 export class FireView {
-  constructor({ flames, sparks, smoke, bed, lights, iron }) {
+  constructor({ flames, sparks, smoke, bed, lights, iron, wall }) {
     this.flames = flames;
     this.sparks = sparks;
     this.smoke = smoke;
     this.bed = bed;
     this.lights = lights;
     this.iron = iron;
+    this.wall = wall;
     this.centroid = new THREE.Vector3(0, 0.2, -0.1);
     this.smoothPower = 0;
     this.sparkAcc = 0;
@@ -114,6 +115,13 @@ export class FireView {
     L.fillLight.position.set(this.centroid.x + Math.sin(time * 1.7) * 0.05, this.centroid.y + 0.32, this.centroid.z + 0.08);
     L.emberLight.intensity = (sim.bedGlow * 0.2 + this.glowTotal(game) * 0.06) * (1 + bellows * 0.6) * (0.9 + 0.1 * Math.sin(time * 1.3));
     L.roomLight.intensity = P * 0.25 * flick;
+    // Sin fuego la pared se aclara para que no se confunda con la parrilla.
+    const coldGoal = 1 - Math.min(1, P * 1.6 + flameTotal * 0.6 + sim.bedGlow * 1.2);
+    this.cold = this.cold === undefined ? coldGoal : this.cold + (coldGoal - this.cold) * Math.min(1, dt * 0.8);
+    const cold = this.cold;
+    this.wall.emissive.setRGB(0.28 * cold, 0.2 * cold, 0.13 * cold);
+    L.lamp.intensity = 5 + cold * 9;
+    L.hemi.intensity = 0.12 + cold * 0.22;
     if (match) {
       L.fireLight.intensity += 0.06 * match.life;
       if (P < 0.3) L.fireLight.position.set(match.x, match.y + 0.03, match.z);

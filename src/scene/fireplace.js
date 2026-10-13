@@ -212,5 +212,5 @@ export function buildFireplace(scene) {
   lamp.target.position.set(0, 0.2, -0.15);
   scene.add(lamp, lamp.target);
 
-  return { group, iron, lights: { fireLight, fillLight, emberLight, roomLight, hemi, lamp } };
+  return { group, iron, wall: inner, lights: { fireLight, fillLight, emberLight, roomLight, hemi, lamp } };
 }

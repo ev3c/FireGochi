@@ -42,7 +42,7 @@ const bed = new EmberBed(scene);
 const audio = new FireAudio();
 const ui = new UI();
 const game = new Game({ scene, phys, audio, sparks, smoke, notify: (t, i) => ui.toast(t, i) });
-const view = new FireView({ flames, sparks, smoke, bed, lights: fp.lights, iron: fp.iron });
+const view = new FireView({ flames, sparks, smoke, bed, lights: fp.lights, iron: fp.iron, wall: fp.wall });
 
 const envMeshes = [];
 fp.group.traverse((o) => { if (o.isMesh) envMeshes.push(o); });
