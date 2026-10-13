@@ -6,8 +6,16 @@ DirectoryIndex index.html
   AddType image/png .png
 </IfModule>
 
+<IfModule mod_expires.c>
+  ExpiresActive Off
+</IfModule>
+
 <IfModule mod_headers.c>
-  <FilesMatch "^(index\.html|sw\.js|manifest\.webmanifest)$">
-    Header set Cache-Control "no-cache"
+  <FilesMatch "\.(html|js|mjs|css|webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
+</IfModule>
+
+<IfModule LiteSpeed>
+  CacheDisable public /
 </IfModule>

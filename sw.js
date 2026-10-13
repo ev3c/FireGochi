@@ -1,5 +1,5 @@
 // Service worker: red primero (para recibir siempre la última versión) y caché si no hay conexión.
-const CACHE = 'firegochi-v1';
+const CACHE = 'firegochi-v2';
 const CORE = [
   './',
   'index.html',
@@ -11,7 +11,8 @@ const CORE = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)));
 });
 
 self.addEventListener('activate', (e) => {
@@ -24,6 +25,7 @@ self.addEventListener('activate', (e) => {
 
 // La página envía lo que cargó antes de que el service worker controlara la pestaña.
 self.addEventListener('message', (e) => {
+  if (e.data?.type === 'skip') self.skipWaiting();
   if (e.data?.type !== 'cache') return;
   const urls = (e.data.urls || []).filter((u) => new URL(u).origin === location.origin);
   e.waitUntil(caches.open(CACHE).then((c) => Promise.all(urls.map((u) => c.add(u).catch(() => {})))));
@@ -33,7 +35,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: 'no-store' })
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();

@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <meta name="apple-mobile-web-app-title" content="FireGochi" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="src/style.css" />
+  <link rel="stylesheet" href="src/style.css?v=1.16" />
   <script type="importmap">
     {
       "imports": {
@@ -28,7 +28,7 @@
 
   <div id="hud" class="panel">
     <div id="brand">
-      <span class="brand-name">🔥 FireGochi <span class="ver">v1.15</span></span>
+      <span class="brand-name">🔥 FireGochi <span class="ver">v1.16</span></span>
       <span id="lang-switch" class="lang-switch">
         <button type="button" class="lang-btn" data-lang="es" title="Español">ES</button>
         <button type="button" class="lang-btn" data-lang="en" title="English">EN</button>
@@ -92,11 +92,18 @@
   </div>
 
   <noscript>Este juego necesita JavaScript. This game needs JavaScript.</noscript>
-  <script type="module" src="src/main.js"></script>
+  <script type="module" src="src/main.js?v=1.16"></script>
   <script>
     if ('serviceWorker' in navigator) {
+      let refreshed = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshed) return;
+        refreshed = true;
+        location.reload();
+      });
       window.addEventListener('load', async () => {
-        await navigator.serviceWorker.register('sw.js');
+        const reg = await navigator.serviceWorker.register('sw.js?v=1.16');
+        if (reg.waiting) reg.waiting.postMessage({ type: 'skip' });
         const sw = (await navigator.serviceWorker.ready).active;
         const urls = performance.getEntriesByType('resource').map((r) => r.name).filter((u) => u.startsWith(location.origin));
         sw?.postMessage({ type: 'cache', urls });
