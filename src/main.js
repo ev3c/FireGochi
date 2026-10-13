@@ -72,6 +72,9 @@ composer.addPass(new OutputPass());
 
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
+  const pr = Math.min(window.devicePixelRatio, 1.75);
+  renderer.setPixelRatio(pr);
+  composer.setPixelRatio(pr);
   renderer.setSize(w, h);
   composer.setSize(w, h);
   camera.aspect = w / h;

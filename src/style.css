@@ -99,6 +99,7 @@ html, body {
 }
 
 #topbar { position: fixed; top: 12px; right: 12px; display: flex; gap: 6px; }
+.topbar-row { display: flex; gap: 6px; }
 
 #bottom {
   position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
@@ -172,8 +173,12 @@ html, body {
 @media (max-width: 900px) {
   #status { top: auto; bottom: 120px; max-width: calc(100vw - 24px); font-size: 13px; }
   #hud { width: 220px; font-size: 12px; padding: 8px 10px; }
+  #topbar {
+    flex-direction: column-reverse;
+    align-items: flex-end;
+  }
   #topbar .btn { padding: 6px 8px; }
   .slot { width: 56px; min-width: 56px; height: 58px; }
   .achs { grid-template-columns: 1fr; }
-  #toasts { width: 260px; }
+  #toasts { top: 96px; width: 260px; }
 }

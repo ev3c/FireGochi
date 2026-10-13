@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BED } from '../scene/layout.js';
 import { sharedTime } from '../fuel/meshes.js';
 import { mulberry32, fbm as fbmJS } from '../util/noise.js';
+import { HASH_GLSL } from './flames.js';
 
 // Lecho bajo la parrilla: un montón de ceniza que crece con el uso y trozos de carbón encima.
 
@@ -10,7 +11,7 @@ const MOUND_H = 0.034;
 const bedHead = `
 uniform float uTime; uniform float uGlow; uniform float uAsh; uniform float uCoal;
 varying vec2 vBedUv; varying float vH;
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+${HASH_GLSL}
 float noise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   vec2 u = f * f * (3.0 - 2.0 * f);

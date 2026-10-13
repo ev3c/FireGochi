@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>FireGochi — Cuida tu fuego</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#120b07" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="FireGochi" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="stylesheet" href="src/style.css" />
   <script type="importmap">
     {
@@ -21,7 +28,7 @@
 
   <div id="hud" class="panel">
     <div id="brand">
-      <span class="brand-name">🔥 FireGochi <span class="ver">v1.08</span></span>
+      <span class="brand-name">🔥 FireGochi <span class="ver">v1.11</span></span>
       <span id="lang-switch" class="lang-switch">
         <button type="button" class="lang-btn" data-lang="es" title="Español">ES</button>
         <button type="button" class="lang-btn" data-lang="en" title="English">EN</button>
@@ -53,12 +60,16 @@
   <div id="status" class="panel"></div>
 
   <div id="topbar">
-    <button class="btn" id="btn-garden" data-i18n-title="nav.gardenTip" title="Recoge leña gratis del jardín cada pocos minutos">🌲 Jardín</button>
-    <button class="btn" id="btn-shop" data-i18n="nav.shop" data-i18n-title="nav.shopTip" title="Compra leña y cerillas con puntos de calor">🛒 Tienda</button>
-    <button class="btn" id="btn-ach" data-i18n-title="nav.achTip" title="Logros">🏆</button>
-    <button class="btn" id="btn-help" data-i18n-title="nav.helpTip" title="Ayuda">❔</button>
-    <button class="btn" id="btn-sound" data-i18n-title="nav.soundTip" title="Sonido">🔊</button>
-    <button class="btn" id="btn-settings" data-i18n-title="nav.settingsTip" title="Ajustes">⚙️</button>
+    <div class="topbar-row topbar-actions">
+      <button class="btn" id="btn-garden" data-i18n-title="nav.gardenTip" title="Recoge leña gratis del jardín cada pocos minutos">🌲 Jardín</button>
+      <button class="btn" id="btn-shop" data-i18n="nav.shop" data-i18n-title="nav.shopTip" title="Compra leña y cerillas con puntos de calor">🛒 Tienda</button>
+    </div>
+    <div class="topbar-row topbar-icons">
+      <button class="btn" id="btn-ach" data-i18n-title="nav.achTip" title="Logros">🏆</button>
+      <button class="btn" id="btn-help" data-i18n-title="nav.helpTip" title="Ayuda">❔</button>
+      <button class="btn" id="btn-sound" data-i18n-title="nav.soundTip" title="Sonido">🔊</button>
+      <button class="btn" id="btn-settings" data-i18n-title="nav.settingsTip" title="Ajustes">⚙️</button>
+    </div>
   </div>
 
   <div id="bottom">
@@ -82,5 +93,15 @@
 
   <noscript>Este juego necesita JavaScript. This game needs JavaScript.</noscript>
   <script type="module" src="src/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        await navigator.serviceWorker.register('sw.js');
+        const sw = (await navigator.serviceWorker.ready).active;
+        const urls = performance.getEntriesByType('resource').map((r) => r.name).filter((u) => u.startsWith(location.origin));
+        sw?.postMessage({ type: 'cache', urls });
+      });
+    }
+  </script>
 </body>
 </html>

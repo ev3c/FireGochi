@@ -4,8 +4,19 @@ import * as THREE from 'three';
 // se mire desde donde se mire) con un campo de densidad de ruido deformado.
 // Se mezclan con alfa premultiplicado para que al solaparse no se quemen a blanco.
 
-const NOISE_GLSL = `
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// Hash sin sin(): en muchas GPU de móvil sin() con argumentos grandes pierde precisión
+// y el ruido se vuelve bloques o rayas.
+export const HASH_GLSL = `
+float hash(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}`;
+
+// Periodo del tiempo que reciben los shaders: mantiene las coordenadas de ruido pequeñas.
+export const SHADER_TIME_WRAP = 600;
+
+const NOISE_GLSL = `${HASH_GLSL}
 float noise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   vec2 u = f * f * (3.0 - 2.0 * f);
@@ -142,7 +153,7 @@ export class FlameSystem {
     m.visible = true;
     m.position.set(x, y, z);
     const u = m.material.uniforms;
-    u.uTime.value = time;
+    u.uTime.value = time % SHADER_TIME_WRAP;
     u.uSeed.value = seed;
     u.uIntensity.value = Math.min(1.4, intensity);
     u.uSize.value.set(w, h);

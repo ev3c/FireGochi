@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BOX } from '../scene/layout.js';
+import { HASH_GLSL, SHADER_TIME_WRAP } from './flames.js';
 
 // Sistema de partículas en CPU dibujado como THREE.Points.
 
@@ -46,7 +47,7 @@ uniform vec3 uLight;
 varying float vLife;
 varying float vShade;
 varying float vSeed;
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+${HASH_GLSL}
 float noise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   vec2 u = f * f * (3.0 - 2.0 * f);
@@ -185,7 +186,7 @@ export class Smoke {
   }
   update(dt, time, light) {
     const p = this.p;
-    this.mat.uniforms.uTime.value = time;
+    this.mat.uniforms.uTime.value = time % SHADER_TIME_WRAP;
     this.mat.uniforms.uLight.value.copy(light);
     for (let i = p.n - 1; i >= 0; i--) {
       p.life[i] -= dt;
