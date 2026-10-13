@@ -6,7 +6,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildFireplace } from './scene/fireplace.js';
 import { createPhysics } from './physics.js';
-import { FlameSystem } from './fire/flames.js';
+import { FlameSystem, SHADER_TIME_WRAP } from './fire/flames.js';
 import { Sparks, Smoke } from './fire/particles.js';
 import { EmberBed } from './fire/emberBed.js';
 import { FireView } from './fire/fireView.js';
@@ -18,8 +18,25 @@ import { UI } from './ui.js';
 import { CameraRig } from './cameraRig.js';
 
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const apple = ios || /Macintosh|Mac OS X/.test(navigator.userAgent);
+const dprCap = ios ? 1.25 : 1.75;
+
+function createRenderer(canvas) {
+  const prefs = apple ? ['low-power', 'default', 'high-performance'] : ['high-performance', 'default', 'low-power'];
+  let last;
+  for (const powerPreference of prefs) {
+    try {
+      return new THREE.WebGLRenderer({ canvas, antialias: !ios, powerPreference, failIfMajorPerformanceCaveat: false });
+    } catch (err) {
+      last = err;
+    }
+  }
+  throw last;
+}
+
+const renderer = createRenderer(canvas);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -48,22 +65,46 @@ const envMeshes = [];
 fp.group.traverse((o) => { if (o.isMesh) envMeshes.push(o); });
 const ix = new Interaction({ camera, rig, dom: canvas, game, envMeshes, audio, ui, scene });
 
-// Posprocesado: bloom para el resplandor y una viñeta cálida.
-const composer = new EffectComposer(renderer);
+// Safari (iPhone y Mac) no puede dibujar en texturas de media precisión: el bloom dejaría la pantalla en negro.
+function halfFloatOK(renderer) {
+  const gl = renderer.getContext();
+  if (!(gl.getExtension('EXT_color_buffer_half_float') || gl.getExtension('EXT_color_buffer_float'))) return false;
+  const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
+  renderer.setRenderTarget(rt);
+  const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+  renderer.setRenderTarget(null);
+  rt.dispose();
+  return ok;
+}
+
+const useFloat = halfFloatOK(renderer);
+let composer;
+if (useFloat) {
+  composer = new EffectComposer(renderer);
+} else {
+  const size = renderer.getSize(new THREE.Vector2());
+  const pr = renderer.getPixelRatio();
+  composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(size.width * pr, size.height * pr, { type: THREE.UnsignedByteType }));
+}
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.42, 0.45, 0.85);
-composer.addPass(bloom);
+if (useFloat) {
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.42, 0.45, 0.85));
+}
 const vignette = new ShaderPass({
   uniforms: { tDiffuse: { value: null }, uHaze: { value: 0 }, uTime: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
   fragmentShader: `uniform sampler2D tDiffuse; uniform float uHaze; uniform float uTime; varying vec2 vUv;
-    float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+    float h(vec2 p){
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
     void main(){
       vec4 c = texture2D(tDiffuse, vUv);
       float d = distance(vUv, vec2(0.5, 0.48));
       c.rgb *= smoothstep(0.95, 0.3, d);
       c.rgb = mix(c.rgb, vec3(0.16, 0.14, 0.12) + c.rgb * 0.5, uHaze);
-      c.rgb += (h(vUv * 800.0 + uTime) - 0.5) * 0.012;
+      c.rgb += (h(vUv * 40.0 + fract(uTime) * 7.0) - 0.5) * 0.012;
       gl_FragColor = c;
     }`,
 });
@@ -72,7 +113,7 @@ composer.addPass(new OutputPass());
 
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
-  const pr = Math.min(window.devicePixelRatio, 1.75);
+  const pr = Math.min(window.devicePixelRatio, dprCap);
   renderer.setPixelRatio(pr);
   composer.setPixelRatio(pr);
   renderer.setSize(w, h);
@@ -115,7 +156,7 @@ function frame() {
   }
   dt = Math.min(dt, 0.05);
   const time = clock.getElapsedTime();
-  sharedTime.value = time;
+  sharedTime.value = time % SHADER_TIME_WRAP;
 
   const input = ix.update(dt, time);
   game.update(dt, time, input);

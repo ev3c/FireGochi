@@ -1,6 +1,7 @@
 // Servidor estático mínimo, sin dependencias: node server.mjs
 import http from 'node:http';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { exec } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -36,9 +37,15 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(port, () => {
+server.listen(port, '0.0.0.0', () => {
   const url = `http://localhost:${port}/`;
   console.log(`La chimenea está lista en ${url}  (Ctrl+C para cerrar)`);
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const net of list || []) {
+      const v4 = net.family === 'IPv4' || net.family === 4;
+      if (v4 && !net.internal) console.log(`Desde el iPhone o el Mac, en la misma Wi-Fi: http://${net.address}:${port}/`);
+    }
+  }
   if (!process.argv.includes('--no-open')) {
     const cmd = process.platform === 'win32' ? `start "" "${url}"` : process.platform === 'darwin' ? `open ${url}` : `xdg-open ${url}`;
     exec(cmd);
