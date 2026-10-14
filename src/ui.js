@@ -368,7 +368,7 @@ export class UI {
     }).join('');
     const matches = row('🔥', t('shop.matches'), t('shop.matchesDesc', { n: MATCH_BOX.qty }), g.state.matches,
       [['matches', MATCH_BOX.qty, MATCH_BOX.price]]);
-    this.openModal(t('shop.title'), `<p class="muted shop-intro">${t('shop.intro', { n: Math.floor(g.state.points) })}</p>
+    this.openModal(`${t('shop.title')} · ${Math.floor(g.state.points)} ✨`, `<p class="muted shop-intro">${t('shop.intro', { n: Math.floor(g.state.points) })}</p>
       <div class="shop">${rows}${matches}</div>`);
     this.modalBody.querySelectorAll('.buy').forEach((b) => {
       b.disabled = g.state.points < Number(b.dataset.p);
