@@ -1,6 +1,7 @@
 import { FUELS, FUEL_ORDER, WET_LIMIT } from './sim/fuels.js';
 import { ACHIEVEMENTS, MATCH_BOX, BODY, bodyState } from './game.js';
 import { t, setLang, getLang, onLang, fuelName, fuelShort, fuelDesc } from './i18n.js';
+import { WorldRecord } from './worldRecord.js';
 
 const HEAT_RISK = ['hot', 'veryhot', 'heatstroke'];
 const SPEEDS = [1, 8, 16, 32, 64, 128, 256, 512, 1024];
@@ -31,8 +32,17 @@ export class UI {
     this.modalBody = this.$('modal-body');
     this.$('modal-close').onclick = () => this.closeModal();
     this.modal.addEventListener('pointerdown', (e) => { if (e.target === this.modal) this.closeModal(); });
+    // Botón Atrás de Android: cierra la ventana abierta en vez de salir del juego.
+    window.addEventListener('popstate', () => {
+      if (this.ignorePop) { this.ignorePop = false; return; }
+      if (!this.modal.classList.contains('open')) return;
+      this.historyOpen = false;
+      this.closeModal();
+      if (this.modal.classList.contains('open')) this.pushModalState();
+    });
     this.lastStatus = '';
     this.view = null;
+    this.world = new WorldRecord();
     this.$('lang-switch').addEventListener('click', (e) => {
       const b = e.target.closest('[data-lang]');
       if (b) setLang(b.dataset.lang);
@@ -79,6 +89,7 @@ export class UI {
     else if (view === 'settings') this.openSettings();
     else if (view === 'offline') this.showOffline(this.offlineReport);
     else if (view === 'gameover') this.showGameOver();
+    else if (view === 'name') this.askName();
   }
 
   refreshToolLabels() {
@@ -214,6 +225,7 @@ export class UI {
     this.$('outside').title = w ? t(`weather.${st.weather.id}.name`) : t('weather.calmName');
     this.$('alive').textContent = g.isAlive() ? fmtDuration(st.stats.aliveFor) : '—';
     this.$('best').textContent = fmtDuration(st.stats.bestStreak);
+    this.refreshWorld();
     this.$('points').textContent = Math.floor(st.points);
     this.$('ct-match').textContent = st.matches;
     const status = this.statusText();
@@ -229,6 +241,42 @@ export class UI {
     this.$('spd-down').disabled = st.speed <= SPEEDS[0];
     this.$('spd-up').disabled = st.speed >= SPEEDS[SPEEDS.length - 1];
     document.body.style.setProperty('--haze', String(Math.min(0.55, g.roomSmoke)));
+  }
+
+  refreshWorld() {
+    const w = this.world;
+    const best = this.game.state.stats.bestStreak;
+    if (w.update(best) && !this.view && !this.game.state.dead) this.askName();
+    const box = this.$('world');
+    box.hidden = !w.enabled || !w.online;
+    if (box.hidden) return;
+    const r = w.record;
+    this.$('world-time').textContent = r ? fmtDuration(r.seconds) : '—';
+    const who = !r ? t('world.empty') : w.mine ? t('world.you') : (r.name || t('world.anon'));
+    this.$('world-name').textContent = who;
+    box.classList.toggle('mine', w.mine);
+    box.title = r ? `${t('world.title')}: ${fmtDuration(r.seconds)} — ${r.name || t('world.anon')}` : t('world.title');
+  }
+
+  askName() {
+    this.view = 'name';
+    this.openModal(t('world.newTitle'), `<p>${t('world.newBody', { time: fmtDuration(this.game.state.stats.bestStreak) })}</p>
+      <form id="name-form" class="name-form">
+        <input id="name-input" type="text" maxlength="20" autocomplete="nickname" placeholder="${t('world.placeholder')}" />
+        <button class="btn" type="submit">${t('world.save')}</button>
+      </form>
+      <p class="muted">${t('world.privacy')}</p>`);
+    const input = this.$('name-input');
+    setTimeout(() => input.focus(), 50);
+    this.$('name-form').onsubmit = (e) => {
+      e.preventDefault();
+      if (!input.value.trim()) return input.focus();
+      this.world.setName(input.value);
+      this.view = null;
+      this.closeModal();
+      this.world.send(this.game.state.stats.bestStreak);
+      this.toast(t('world.saved', { name: this.world.player.name }), '🌍');
+    };
   }
 
   warnBody(body) {
@@ -287,29 +335,41 @@ export class UI {
     this.modalBody.innerHTML = html;
     this.$('modal-close').hidden = this.view === 'gameover';
     this.modal.classList.add('open');
+    this.pushModalState();
+  }
+
+  pushModalState() {
+    if (this.historyOpen) return;
+    this.historyOpen = true;
+    history.pushState({ firegochiModal: true }, '');
   }
 
   closeModal() {
     if (this.view === 'gameover' && this.game?.state.dead) return;
+    if (this.view === 'name') this.world.anonymous = true;
     this.view = null;
     this.modal.classList.remove('open');
+    if (this.historyOpen) {
+      this.historyOpen = false;
+      this.ignorePop = true;
+      history.back();
+    }
   }
 
   openShop() {
     this.view = 'shop';
     const g = this.game;
+    const row = (icon, name, desc, have, buys) => `<div class="shop-row"><span class="ic">${icon}</span>
+      <div class="info"><b>${name}</b><span class="have">${t('shop.have', { n: have })}</span><small>${desc}</small></div>
+      <div class="buys">${buys.map(([k, q, p]) => `<button class="btn buy" data-k="${k}" data-p="${p}" data-q="${q}"><span class="q">×${q}</span> ${p} ✨</button>`).join('')}</div></div>`;
     const rows = FUEL_ORDER.map((id) => {
       const F = FUELS[id];
-      return `<div class="shop-row"><span class="ic">${F.icon}</span><div class="info"><b>${fuelName(id)}</b><small>${fuelDesc(id)}</small></div>
-        <span class="have">${t('shop.have', { n: g.state.inventory[id] || 0 })}</span>
-        <button class="btn buy" data-k="${id}" data-p="${F.price}" data-q="1">1 · ${F.price} ✨</button>
-        <button class="btn buy" data-k="${id}" data-p="${F.price * 4}" data-q="5">5 · ${F.price * 4} ✨</button></div>`;
+      return row(F.icon, fuelName(id), fuelDesc(id), g.state.inventory[id] || 0, [[id, 1, F.price], [id, 5, F.price * 4]]);
     }).join('');
-    this.openModal(t('shop.title'), `<p class="muted">${t('shop.intro', { n: Math.floor(g.state.points) })}</p>
-      <div class="shop">${rows}
-      <div class="shop-row"><span class="ic">🔥</span><div class="info"><b>${t('shop.matches')}</b><small>${t('shop.matchesDesc', { n: MATCH_BOX.qty })}</small></div>
-      <span class="have">${t('shop.have', { n: g.state.matches })}</span>
-      <button class="btn buy" data-k="matches" data-p="${MATCH_BOX.price}" data-q="${MATCH_BOX.qty}">${MATCH_BOX.qty} · ${MATCH_BOX.price} ✨</button><span></span></div></div>`);
+    const matches = row('🔥', t('shop.matches'), t('shop.matchesDesc', { n: MATCH_BOX.qty }), g.state.matches,
+      [['matches', MATCH_BOX.qty, MATCH_BOX.price]]);
+    this.openModal(t('shop.title'), `<p class="muted shop-intro">${t('shop.intro', { n: Math.floor(g.state.points) })}</p>
+      <div class="shop">${rows}${matches}</div>`);
     this.modalBody.querySelectorAll('.buy').forEach((b) => {
       b.disabled = g.state.points < Number(b.dataset.p);
       b.onclick = () => {
@@ -355,8 +415,20 @@ export class UI {
     this.openModal(t('settings.title'), `
       <p><b>${t('settings.time')}</b> <span class="muted">${t('settings.timeHint')}</span></p>
       <div class="row-btns">${SPEEDS.map((s) => `<button class="btn spd ${st.speed === s ? 'on' : ''}" data-s="${s}">x${s}</button>`).join('')}</div>
+      <p><b>${t('world.nick')}</b> <span class="muted">${t('world.nickHint')}</span></p>
+      <form id="nick-form" class="name-form">
+        <input id="nick-input" type="text" maxlength="20" autocomplete="nickname" placeholder="${t('world.placeholder')}" />
+        <button class="btn" type="submit">${t('world.save')}</button>
+      </form>
       <p><b>${t('settings.game')}</b></p>
       <div class="row-btns"><button class="btn danger" id="reset">${t('settings.reset')}</button></div>`);
+    this.$('nick-input').value = this.world.player.name;
+    this.$('nick-form').onsubmit = (e) => {
+      e.preventDefault();
+      this.world.setName(this.$('nick-input').value);
+      if (this.world.mine) this.world.send(this.world.seconds);
+      this.toast(t('world.saved', { name: this.world.player.name || t('world.anon') }), '🌍');
+    };
     this.modalBody.querySelectorAll('.spd').forEach((b) => {
       b.onclick = () => { st.speed = Number(b.dataset.s); this.openSettings(); this.refresh(); };
     });

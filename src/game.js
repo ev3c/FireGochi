@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '../vendor/three/three.module.js';
 import { FUELS, FUEL_ORDER, WET_LIMIT, WET_MOISTURE } from './sim/fuels.js';
 import { createSim, createItem, stepSim, computeCoupling, fireLevel, itemMassFraction, ensureNextId, douseAt } from './sim/combustion.js';
 import { createFuelMesh, setBurnVisual, disposeFuelMesh } from './fuel/meshes.js';

@@ -1,4 +1,4 @@
-import * as CANNON from 'cannon-es';
+import * as CANNON from '../vendor/cannon/cannon-es.js';
 import { FUELS } from './sim/fuels.js';
 import { BOX, GRATE, grateBarXs } from './scene/layout.js';
 

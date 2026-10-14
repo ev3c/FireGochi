@@ -1,9 +1,9 @@
-import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import * as THREE from '../vendor/three/three.module.js';
+import { EffectComposer } from '../vendor/three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from '../vendor/three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from '../vendor/three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from '../vendor/three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from '../vendor/three/addons/postprocessing/OutputPass.js';
 import { buildFireplace } from './scene/fireplace.js';
 import { createPhysics } from './physics.js';
 import { FlameSystem, SHADER_TIME_WRAP } from './fire/flames.js';
@@ -193,8 +193,13 @@ function frame() {
   }
 }
 
+// Instalada como app (Android/Google Play o pantalla de inicio) no se pregunta al salir.
+const installedApp = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches
+  || document.referrer.startsWith('android-app://') || navigator.standalone === true;
+
 window.addEventListener('beforeunload', (e) => {
   game.save();
+  if (installedApp) return;
   e.preventDefault();
   e.returnValue = '';
 });

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '../vendor/three/three.module.js';
 import { FUELS } from './sim/fuels.js';
 import { createFuelMesh, disposeFuelMesh } from './fuel/meshes.js';
 import { BOX } from './scene/layout.js';

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.js';
 import { fbm, valueNoise, makeVoronoi, mulberry32, clamp01, smoothstep, lerp } from '../util/noise.js';
 import { getLang } from '../i18n.js';
 
@@ -80,20 +80,20 @@ export function brickTextures(kind = 'refractory') {
           let r, g, b, h;
           if (edge < joint) {
             const m = 0.45 + n * 0.35;
-            if (kind === 'refractory') { r = 96 * m; g = 86 * m; b = 72 * m; }
-            else { r = 95 * m; g = 88 * m; b = 80 * m; }
+            if (kind === 'refractory') { r = 104 * m; g = 90 * m; b = 70 * m; }
+            else { r = 104 * m; g = 92 * m; b = 76 * m; }
             h = 0.15 * smoothstep(0, joint, edge);
           } else {
             const bevel = smoothstep(joint, joint + 10, edge);
             const shade = (0.78 + 0.22 * bevel) * (0.8 + n * 0.3 + (fine - 0.5) * 0.14) * pits * (1 - stain * 0.3);
             if (kind === 'refractory') {
-              r = (236 + tint[0] * 16) * shade;
-              g = (208 + tint[1] * 14) * shade;
-              b = (172 + tint[2] * 12) * shade;
+              r = (220 + tint[0] * 22) * shade;
+              g = (170 + tint[1] * 20) * shade;
+              b = (106 + tint[2] * 16) * shade;
             } else {
-              r = (128 + tint[0] * 45) * shade;
-              g = (58 + tint[1] * 22) * shade;
-              b = (40 + tint[2] * 15) * shade;
+              r = (198 + tint[0] * 32) * shade;
+              g = (150 + tint[1] * 26) * shade;
+              b = (92 + tint[2] * 18) * shade;
             }
             h = 0.5 + bevel * 0.4 + (n - 0.5) * 0.3 + (fine - 0.5) * 0.1 - (pits < 1 ? 0.2 : 0);
           }

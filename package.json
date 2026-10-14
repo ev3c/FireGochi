@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
+    "dist": "node tools/build-dist.mjs",
     "simtest": "node tools/simtest.mjs"
   }
 }

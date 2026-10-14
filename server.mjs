@@ -20,8 +20,49 @@ const types = {
   '.svg': 'image/svg+xml',
 };
 
+// Imitación local de api/record.php (en Hostinger lo sirve PHP).
+const recordFile = path.join(root, 'api/data/record.json');
+function recordApi(req, res) {
+  const send = (code, body) => {
+    res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' });
+    res.end(body === undefined ? '' : JSON.stringify(body));
+  };
+  if (req.method === 'OPTIONS') return send(204);
+  let record = null;
+  try { record = JSON.parse(fs.readFileSync(recordFile, 'utf8')); } catch {}
+  if (req.method !== 'POST') return send(200, { record });
+  let raw = '';
+  req.on('data', (c) => { raw += c; });
+  req.on('end', () => {
+    let inp;
+    try { inp = JSON.parse(raw); } catch { return send(400, { error: 'invalid', record }); }
+    const seconds = Number(inp.seconds);
+    const id = String(inp.id || '').slice(0, 40).replace(/[^a-zA-Z0-9-]/g, '');
+    if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 1e11 || !id) return send(400, { error: 'invalid', record });
+    const name = String(inp.name || '').replace(/[\x00-\x1F\x7F<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 20) || null;
+    let changed = false;
+    if (!record || seconds > record.seconds) {
+      record = { name, seconds: Math.round(seconds * 10) / 10, id, at: Math.floor(Date.now() / 1000) };
+      changed = true;
+    } else if (record.id === id && name && name !== record.name) {
+      record.name = name;
+      changed = true;
+    }
+    if (changed) {
+      fs.mkdirSync(path.dirname(recordFile), { recursive: true });
+      fs.writeFileSync(recordFile, JSON.stringify(record));
+    }
+    send(200, { record });
+  });
+}
+
 const server = http.createServer((req, res) => {
   const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (url === '/api/record.php') return recordApi(req, res);
+  if (url.startsWith('/api/data/')) {
+    res.writeHead(403);
+    return res.end();
+  }
   let file = path.normalize(path.join(root, url === '/' ? 'index.html' : url));
   if (!file.startsWith(root)) {
     res.writeHead(403);

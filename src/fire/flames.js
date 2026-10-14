@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.js';
 
 // Llamas: láminas que giran solo alrededor del eje vertical (siempre de pie,
 // se mire desde donde se mire) con un campo de densidad de ruido deformado.

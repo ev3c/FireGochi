@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.js';
 import { valueNoise, fbm, smoothstep } from '../util/noise.js';
 import { barkTextures, sampleBarkHeight, BARK_TILE, SPLIT_TILE } from '../scene/textures.js';
 

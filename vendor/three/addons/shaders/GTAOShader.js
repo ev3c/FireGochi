@@ -4,7 +4,7 @@ import {
 	RepeatWrapping,
 	Vector2,
 	Vector3,
-} from 'three';
+} from '../../three.module.js';
 
 /**
  * References:

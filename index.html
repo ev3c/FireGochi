@@ -12,15 +12,33 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <meta name="apple-mobile-web-app-title" content="FireGochi" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="src/style.css?v=1.16" />
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "./vendor/three/three.module.js",
-        "three/addons/": "./vendor/three/addons/",
-        "cannon-es": "./vendor/cannon/cannon-es.js"
+  <link rel="stylesheet" href="src/style.css?v=1.25" />
+  <script>
+    // Si el juego no llega a arrancar, lo dice en pantalla en vez de quedarse congelado.
+    (function () {
+      var errors = [];
+      function show(extra) {
+        if (window.__chimenea || document.getElementById('boot-error')) return;
+        var en = (localStorage.getItem('firegochi-lang') || navigator.language || '').indexOf('en') === 0;
+        var box = document.createElement('div');
+        box.id = 'boot-error';
+        box.style.cssText = 'position:fixed;inset:auto 12px 12px 12px;z-index:99;padding:14px 16px;border-radius:12px;background:rgba(60,14,8,.95);color:#f3e2cf;font:14px/1.45 system-ui,sans-serif;border:1px solid #ff9a3c';
+        box.innerHTML = '<b>' + (en ? 'FireGochi could not start.' : 'FireGochi no ha podido arrancar.') + '</b><br>'
+          + (en ? 'Reload the page. If it keeps happening, send this message:' : 'Recarga la página. Si sigue pasando, envía este mensaje:')
+          + '<pre style="white-space:pre-wrap;margin:8px 0 10px;font-size:12px;opacity:.85"></pre>'
+          + '<button type="button" style="padding:7px 12px;border-radius:8px;border:1px solid #ff9a3c;background:#5a2a10;color:#f3e2cf">' + (en ? 'Reload' : 'Recargar') + '</button>';
+        box.querySelector('pre').textContent = (errors.concat(extra ? [extra] : []).join('\n') || 'timeout') + '\n' + navigator.userAgent;
+        box.querySelector('button').onclick = function () { location.reload(); };
+        document.body.appendChild(box);
       }
-    }
+      window.addEventListener('error', function (e) {
+        var where = e.filename ? ' (' + e.filename.split('/').slice(-2).join('/') + ':' + e.lineno + ')' : (e.target && e.target.src ? ' (' + e.target.src + ')' : '');
+        errors.push((e.message || 'load error') + where);
+        setTimeout(show, 300);
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) { errors.push(String(e.reason)); setTimeout(show, 300); });
+      window.addEventListener('load', function () { setTimeout(function () { show(); }, 10000); });
+    })();
   </script>
 </head>
 <body>
@@ -28,7 +46,7 @@
 
   <div id="hud" class="panel">
     <div id="brand">
-      <span class="brand-name">🔥 FireGochi <span class="ver">v1.16</span></span>
+      <span class="brand-name">🔥 FireGochi <span class="ver">v1.25</span></span>
       <span id="lang-switch" class="lang-switch">
         <button type="button" class="lang-btn" data-lang="es" title="Español">ES</button>
         <button type="button" class="lang-btn" data-lang="en" title="English">EN</button>
@@ -49,6 +67,11 @@
       <span data-i18n="hud.outside">🌙 Fuera</span><b id="outside">—</b>
       <span data-i18n="hud.alive">⏱️ Encendido</span><b id="alive">—</b>
       <span data-i18n="hud.best">🏅 Récord</span><b id="best">—</b>
+    </div>
+    <div id="world" hidden>
+      <span class="world-lbl" data-i18n="hud.world">🌍 Mundial</span>
+      <b id="world-time">—</b>
+      <span id="world-name"></span>
     </div>
     <div id="speed">
       <button type="button" class="spd-btn" id="spd-down" data-i18n-title="hud.slower" title="Más lento">«</button>
@@ -92,7 +115,7 @@
   </div>
 
   <noscript>Este juego necesita JavaScript. This game needs JavaScript.</noscript>
-  <script type="module" src="src/main.js?v=1.16"></script>
+  <script type="module" src="src/main.js?v=1.25"></script>
   <script>
     if ('serviceWorker' in navigator) {
       let refreshed = false;
@@ -102,7 +125,7 @@
         location.reload();
       });
       window.addEventListener('load', async () => {
-        const reg = await navigator.serviceWorker.register('sw.js?v=1.16');
+        const reg = await navigator.serviceWorker.register('sw.js?v=1.25');
         if (reg.waiting) reg.waiting.postMessage({ type: 'skip' });
         const sw = (await navigator.serviceWorker.ready).active;
         const urls = performance.getEntriesByType('resource').map((r) => r.name).filter((u) => u.startsWith(location.origin));

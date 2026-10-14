@@ -1,5 +1,5 @@
-import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import * as THREE from '../../vendor/three/three.module.js';
+import { mergeGeometries } from '../../vendor/three/addons/utils/BufferGeometryUtils.js';
 import { FUELS } from '../sim/fuels.js';
 import { barkTextures, endGrainTexture, splitWoodTextures, crackTexture, newspaperTexture } from '../scene/textures.js';
 import { mulberry32, valueNoise } from '../util/noise.js';

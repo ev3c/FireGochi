@@ -1,0 +1,8 @@
+# Los datos solo se leen a través de record.php.
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

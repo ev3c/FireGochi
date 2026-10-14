@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.js';
 import { BED } from '../scene/layout.js';
 import { sharedTime } from '../fuel/meshes.js';
 import { mulberry32, fbm as fbmJS } from '../util/noise.js';

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '../vendor/three/three.module.js';
 
 // Cámara orbital alrededor del hogar, con límites para no atravesar la fachada.
 const DEFAULT = { yaw: 0, pitch: 0.13, dist: 1.4 };

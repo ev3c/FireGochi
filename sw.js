@@ -1,11 +1,9 @@
 // Service worker: red primero (para recibir siempre la última versión) y caché si no hay conexión.
-const CACHE = 'firegochi-v2';
+const CACHE = 'firegochi-v3';
 const CORE = [
   './',
   'index.html',
   'manifest.webmanifest',
-  'src/style.css',
-  'src/main.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
 ];
@@ -33,7 +31,9 @@ self.addEventListener('message', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.includes('/api/')) return;
+  const page = req.mode === 'navigate';
   e.respondWith(
     fetch(req, { cache: 'no-store' })
       .then((res) => {
@@ -43,6 +43,7 @@ self.addEventListener('fetch', (e) => {
         }
         return res;
       })
-      .catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || caches.match('index.html')))
+      // Sin conexión: cada script se busca con su versión exacta para no mezclar archivos de versiones distintas.
+      .catch(() => caches.match(req, { ignoreSearch: page }).then((hit) => hit || (page ? caches.match('index.html') : Response.error())))
   );
 });

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.js';
 import { FUELS } from '../sim/fuels.js';
 import { valueNoise } from '../util/noise.js';
 import { BED } from '../scene/layout.js';
@@ -119,9 +119,9 @@ export class FireView {
     const coldGoal = 1 - Math.min(1, P * 1.6 + flameTotal * 0.6 + sim.bedGlow * 1.2);
     this.cold = this.cold === undefined ? coldGoal : this.cold + (coldGoal - this.cold) * Math.min(1, dt * 0.8);
     const cold = this.cold;
-    this.wall.emissive.setRGB(0.28 * cold, 0.2 * cold, 0.13 * cold);
-    L.lamp.intensity = 5 + cold * 9;
-    L.hemi.intensity = 0.12 + cold * 0.22;
+    this.wall.emissive.setRGB(0.12 * cold, 0.085 * cold, 0.055 * cold);
+    L.lamp.intensity = 5 + cold * 6.5;
+    L.hemi.intensity = 0.12 + cold * 0.16;
     if (match) {
       L.fireLight.intensity += 0.06 * match.life;
       if (P < 0.3) L.fireLight.position.set(match.x, match.y + 0.03, match.z);

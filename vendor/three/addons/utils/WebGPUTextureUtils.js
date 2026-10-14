@@ -3,7 +3,7 @@ import {
 	NodeMaterial,
 	WebGPURenderer,
 	CanvasTexture
-} from 'three';
+} from '../../three.module.js';
 import { texture, uv } from 'three/tsl';
 
 let _renderer;

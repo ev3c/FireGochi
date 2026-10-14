@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three/three.module.js';
 import { brickTextures, floorTexture } from './textures.js';
 import { BOX, GRATE, grateBarXs } from './layout.js';
 
@@ -93,7 +93,7 @@ export function buildFireplace(scene) {
   flue.position.set(0, H + 0.4, (BOX.zBack + BOX.zFront) / 2);
   group.add(flue);
 
-  // Fachada de ladrillo rojo con el hueco del hogar.
+  // Fachada de ladrillo ocre con el hueco del hogar.
   const facadeMat = sootyBrick('facade', 0);
   facadeMat.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader

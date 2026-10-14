@@ -4,6 +4,13 @@ DirectoryIndex index.html
   AddType application/javascript .js .mjs
   AddType application/manifest+json .webmanifest
   AddType image/png .png
+  AddType application/json .json
+</IfModule>
+
+<IfModule mod_headers.c>
+  <Files "assetlinks.json">
+    Header set Access-Control-Allow-Origin "*"
+  </Files>
 </IfModule>
 
 <IfModule mod_expires.c>
