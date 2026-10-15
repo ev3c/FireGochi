@@ -17,25 +17,95 @@ import { Interaction } from './interaction.js';
 import { UI } from './ui.js';
 import { CameraRig } from './cameraRig.js';
 
-const canvas = document.getElementById('scene');
+// Un aviso por sesión del navegador, solo en el dominio publicado.
+function notifyVisit(ui) {
+  const host = location.hostname.replace(/^www\./, '');
+  if (host !== 'firegochi.com') return;
+  try {
+    if (sessionStorage.getItem('firegochi-visit')) return;
+    sessionStorage.setItem('firegochi-visit', '1');
+  } catch { /* modo privado: se intenta igual */ }
+  const player = ui.world?.player || {};
+  const body = {
+    page: location.href,
+    referrer: document.referrer,
+    lang: navigator.language,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    screen: `${screen.width}x${screen.height}`,
+    name: player.name || '',
+    playerId: player.id || '',
+  };
+  fetch(new URL('api/visit.php', location.href), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const apple = ios || /Macintosh|Mac OS X/.test(navigator.userAgent);
 const dprCap = ios ? 1.25 : 1.75;
 
-function createRenderer(canvas) {
-  const prefs = apple ? ['low-power', 'default', 'high-performance'] : ['high-performance', 'default', 'low-power'];
+// Un canvas en el que falló getContext puede quedar inservible: cada intento usa uno nuevo.
+function createRenderer() {
+  const first = apple ? 'low-power' : 'high-performance';
+  const attempts = [
+    { antialias: !ios, powerPreference: first },
+    { antialias: false, powerPreference: 'default' },
+    { antialias: false, powerPreference: apple ? 'high-performance' : 'low-power' },
+    { antialias: false, powerPreference: 'default', precision: 'mediump', stencil: false },
+  ];
+  let canvas = document.getElementById('scene');
   let last;
-  for (const powerPreference of prefs) {
+  for (const opts of attempts) {
     try {
-      return new THREE.WebGLRenderer({ canvas, antialias: !ios, powerPreference, failIfMajorPerformanceCaveat: false });
+      return new THREE.WebGLRenderer({ canvas, failIfMajorPerformanceCaveat: false, ...opts });
     } catch (err) {
       last = err;
+      const fresh = canvas.cloneNode(false);
+      canvas.replaceWith(fresh);
+      canvas = fresh;
     }
   }
+  showWebGLHelp();
   throw last;
 }
 
-const renderer = createRenderer(canvas);
+function canGet(type) {
+  try {
+    return !!document.createElement('canvas').getContext(type);
+  } catch {
+    return false;
+  }
+}
+
+function showWebGLHelp() {
+  const en = localStorage.getItem('firegochi-lang') === 'en';
+  const gl2 = canGet('webgl2'), gl1 = canGet('webgl') || canGet('experimental-webgl');
+  const steps = en ? [
+    '<b>Chrome:</b> Settings → System → turn on <i>“Use graphics acceleration when available”</i> and relaunch Chrome. Then open <code>chrome://gpu</code>: “WebGL2” should say “Hardware accelerated”.',
+    '<b>Safari:</b> it needs Safari 15 or later (update macOS). In Safari → Settings → Advanced, tick <i>“Show features for web developers”</i>; then in Develop → Feature Flags make sure <i>WebGL 2.0</i> is on.',
+    'Restart the Mac and close other tabs or apps that use 3D.',
+  ] : [
+    '<b>Chrome:</b> Ajustes → Sistema → activa <i>«Usar aceleración gráfica cuando esté disponible»</i> y reinicia Chrome. Después abre <code>chrome://gpu</code>: «WebGL2» debe decir «Hardware accelerated».',
+    '<b>Safari:</b> hace falta Safari 15 o posterior (actualiza macOS). En Safari → Ajustes → Avanzado, marca <i>«Mostrar funciones para desarrolladores web»</i>; luego en Desarrollo → Indicadores de funciones comprueba que <i>WebGL 2.0</i> está activado.',
+    'Reinicia el Mac y cierra otras pestañas o apps que usen 3D.',
+  ];
+  const box = document.createElement('div');
+  box.id = 'gl-help';
+  box.innerHTML = `<div class="gl-card">
+    <h3>${en ? 'Your browser cannot show 3D graphics' : 'Tu navegador no puede mostrar gráficos 3D'}</h3>
+    <p>${en ? 'FireGochi needs <b>WebGL 2</b> and the browser refused to create it. Usually it is fixed like this:' : 'FireGochi necesita <b>WebGL 2</b> y el navegador no ha podido crearlo. Normalmente se arregla así:'}</p>
+    <ol>${steps.map((s) => `<li>${s}</li>`).join('')}</ol>
+    <p class="gl-diag">WebGL 2: ${gl2 ? '✔' : '✘'} · WebGL 1: ${gl1 ? '✔' : '✘'}<br>${navigator.userAgent.replace(/</g, '')}</p>
+    <button type="button" class="btn" onclick="location.reload()">${en ? 'Retry' : 'Reintentar'}</button>
+  </div>`;
+  document.body.appendChild(box);
+}
+
+const renderer = createRenderer();
+const canvas = renderer.domElement;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
@@ -58,6 +128,7 @@ const smoke = new Smoke(scene);
 const bed = new EmberBed(scene);
 const audio = new FireAudio();
 const ui = new UI();
+notifyVisit(ui);
 const game = new Game({ scene, phys, audio, sparks, smoke, notify: (t, i) => ui.toast(t, i) });
 const view = new FireView({ flames, sparks, smoke, bed, lights: fp.lights, iron: fp.iron, wall: fp.wall });
 

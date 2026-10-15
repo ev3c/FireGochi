@@ -150,11 +150,35 @@ export class UI {
         b.dataset.key = key;
         b.title = `${fuelName(id)}${wet ? t('wetParen') : ''} — ${fuelDesc(id)}${wet ? t('wetNote') : ''}`;
         b.innerHTML = `<span class="ic sp-${F.species || id}">${F.icon}</span><span class="nm">${fuelShort(id)}${wet ? ' 💧' : ''}</span><span class="ct">${n}</span>`;
-        b.onclick = () => {
-          this.ix.audio.start();
-          if (!n) { this.openShop(); return; }
-          this.ix.setTool('place', key);
-        };
+        b.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0) return;
+          const sx = e.clientX, sy = e.clientY;
+          let dragged = false;
+          const prev = { tool: this.ix.tool, key: this.ix.placeKey };
+          if (n) {
+            this.ix.audio.start();
+            this.ix.setTool('place', key);
+          }
+          const move = (ev) => {
+            if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > 14) dragged = true;
+          };
+          const end = () => {
+            b.removeEventListener('pointermove', move);
+            b.removeEventListener('pointerup', end);
+            b.removeEventListener('pointercancel', end);
+            if (dragged) {
+              if (n && this.ix.tool === 'place' && this.ix.placeKey === key) this.ix.setTool(prev.tool, prev.key);
+              return;
+            }
+            if (!n) {
+              this.ix.audio.start();
+              this.openShop();
+            }
+          };
+          b.addEventListener('pointermove', move);
+          b.addEventListener('pointerup', end);
+          b.addEventListener('pointercancel', end);
+        });
         box.appendChild(b);
       }
     }
@@ -234,7 +258,7 @@ export class UI {
       this.$('status').textContent = status;
     }
     const gs = g.gardenStatus();
-    this.$('btn-garden').textContent = gs > 0 ? `🌲 ${Math.ceil(gs / 60000)} min` : t('nav.garden');
+    this.$('btn-garden').textContent = gs > 0 ? `🌲 ${Math.ceil(gs / 60)} min` : t('nav.garden');
     this.$('btn-garden').classList.toggle('ready', gs <= 0);
     this.$('btn-sound').textContent = st.sound ? '🔊' : '🔇';
     this.$('spd-val').textContent = `x${st.speed}`;
@@ -384,7 +408,7 @@ export class UI {
   gather() {
     const loot = this.game.gatherGarden();
     if (!loot) {
-      this.toast(t('toast.gardenWait', { min: Math.ceil(this.game.gardenStatus() / 60000) }), '🌲');
+      this.toast(t('toast.gardenWait', { min: Math.ceil(this.game.gardenStatus() / 60) }), '🌲');
       return;
     }
     const list = Object.entries(loot).map(([k, n]) => {

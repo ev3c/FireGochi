@@ -1,5 +1,5 @@
 // Service worker: red primero (para recibir siempre la última versión) y caché si no hay conexión.
-const CACHE = 'firegochi-v3';
+const CACHE = 'firegochi-v5';
 const CORE = [
   './',
   'index.html',

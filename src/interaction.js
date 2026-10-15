@@ -1,6 +1,6 @@
 import * as THREE from '../vendor/three/three.module.js';
 import { FUELS } from './sim/fuels.js';
-import { createFuelMesh, disposeFuelMesh } from './fuel/meshes.js';
+import { createFuelMesh, disposeFuelMesh, warmFuelAssets } from './fuel/meshes.js';
 import { BOX } from './scene/layout.js';
 import { CANNON } from './physics.js';
 import { splitWoodTextures, SPLIT_TILE } from './scene/textures.js';
@@ -29,7 +29,9 @@ export class Interaction {
     this.tool = 'hand';
     this.placeKey = null;
     this.ghost = null;
+    this.placeToken = 0;
     this.yaw = 0;
+    warmFuelAssets();
     this.spin = Math.random() * Math.PI * 2;
     this.match = null;
     this.bellows = 0;
@@ -431,24 +433,30 @@ export class Interaction {
     if (this.match && tool !== 'match') this.blowOutMatch(false);
     this.tool = tool;
     this.placeKey = key;
+    this.ui.setActiveTool(tool, key);
+    this.placeToken += 1;
     if (this.ghost) {
       this.scene.remove(this.ghost.mesh);
       disposeFuelMesh(this.ghost);
       this.ghost = null;
     }
     if (tool === 'place') {
+      const token = this.placeToken;
       const [type, wet] = key.split(':');
-      this.ghost = createFuelMesh(type, Math.floor(Math.random() * 1e6), wet ? 1 : 0);
-      const mats = Array.isArray(this.ghost.mesh.material) ? this.ghost.mesh.material : [this.ghost.mesh.material];
-      for (const m of mats) { m.transparent = true; m.opacity = 0.7; }
-      this.ghost.mesh.castShadow = false;
-      this.ghost.mesh.visible = false;
-      this.scene.add(this.ghost.mesh);
-      this.yaw = (Math.random() - 0.5) * 0.4;
+      const yaw = (Math.random() - 0.5) * 0.4;
+      requestAnimationFrame(() => {
+        if (token !== this.placeToken) return;
+        this.ghost = createFuelMesh(type, Math.floor(Math.random() * 1e6), wet ? 1 : 0);
+        const mats = Array.isArray(this.ghost.mesh.material) ? this.ghost.mesh.material : [this.ghost.mesh.material];
+        for (const m of mats) { m.transparent = true; m.opacity = 0.7; }
+        this.ghost.mesh.castShadow = false;
+        this.ghost.mesh.visible = false;
+        this.scene.add(this.ghost.mesh);
+        this.yaw = yaw;
+      });
     }
     this.pokerMesh.visible = tool === 'poker';
     this.dom.style.cursor = tool === 'hand' ? 'default' : tool === 'place' ? 'grabbing' : 'crosshair';
-    this.ui.setActiveTool(tool, key);
   }
 
   updatePointer(e) {

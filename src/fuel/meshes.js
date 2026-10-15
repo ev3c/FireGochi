@@ -160,6 +160,25 @@ function makeCone(F, rnd, wet) {
   return { mesh, uniforms: [u], wetU };
 }
 
+// Genera corteza y papel en segundo plano. Si se hace al tocar, el móvil se queda parado.
+export function warmFuelAssets() {
+  const jobs = [];
+  for (const species of ['pine', 'birch', 'oak', 'holm']) {
+    jobs.push(() => barkTextures(species));
+    jobs.push(() => splitWoodTextures(species));
+    jobs.push(() => endGrainTexture(species));
+  }
+  jobs.push(() => pineconeGeometry());
+  jobs.push(() => newspaperTexture(1));
+  const run = () => {
+    const job = jobs.shift();
+    if (!job) return;
+    job();
+    setTimeout(run, 40);
+  };
+  setTimeout(run, 300);
+}
+
 export function createFuelMesh(type, seed, wet) {
   const F = FUELS[type];
   const rnd = mulberry32(seed * 7919 + 13);

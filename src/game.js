@@ -8,6 +8,7 @@ import { t, fuelShort } from './i18n.js';
 
 const SAVE_KEY = 'chimenea-tamagotchi-v1';
 const SIM_DT = 0.1;
+const GARDEN_WAIT = 8 * 60;
 const WETTABLE = ['pinecone', 'kindling', 'pine_thin', 'pine', 'birch', 'oak', 'holm'];
 export const MATCH_BOX = { qty: 10, price: 6 };
 
@@ -62,7 +63,7 @@ function defaultState() {
     },
     achievements: {},
     weather: { id: null, until: 0, nextAt: 12 * 60 },
-    gardenReadyAt: 0,
+    gardenReadyAt: 0, // segundos de tiempo de juego en los que el jardín vuelve a estar listo
     dryProgress: 0,
     speed: 1,
     sound: true,
@@ -443,7 +444,7 @@ export class Game {
   }
 
   gardenStatus() {
-    return Math.max(0, this.state.gardenReadyAt - Date.now());
+    return Math.max(0, this.state.gardenReadyAt - this.state.gameTime);
   }
 
   gatherGarden() {
@@ -463,7 +464,7 @@ export class Game {
       loot.paper = 2;
       this.state.inventory.paper = (this.state.inventory.paper || 0) + 2;
     }
-    this.state.gardenReadyAt = Date.now() + 8 * 60 * 1000;
+    this.state.gardenReadyAt = this.state.gameTime + GARDEN_WAIT;
     return loot;
   }
 
@@ -513,6 +514,7 @@ export class Game {
     if (!data || data.v !== 1) return null;
     this.state = Object.assign(defaultState(), data.state);
     this.state.stats = Object.assign(defaultState().stats, data.state.stats);
+    this.migrateGarden(data.savedAt);
     Object.assign(this.sim, data.sim);
     for (const s of data.items) {
       ensureNextId(s.id);
@@ -535,6 +537,16 @@ export class Game {
     this.state = defaultState();
     this.sim = createSim();
     localStorage.removeItem(SAVE_KEY);
+  }
+
+  // Partidas antiguas guardaban la hora real en milisegundos. El jardín espera
+  // 8 minutos del mismo reloj que el fuego, así que acelera con el ritmo del tiempo.
+  migrateGarden(savedAt) {
+    const st = this.state;
+    if (st.gardenReadyAt > 1e11) {
+      const left = Math.max(0, (st.gardenReadyAt - (savedAt || Date.now())) / 1000);
+      st.gardenReadyAt = st.gameTime + left;
+    }
   }
 
   // Simula el tiempo transcurrido sin la pestaña abierta.

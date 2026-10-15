@@ -27,7 +27,7 @@ const STR = {
     'hud.faster': 'Más rápido',
     'hud.pointsTip': 'Puntos de calor',
     'nav.garden': '🌲 Jardín',
-    'nav.gardenTip': 'Recoge leña gratis del jardín cada pocos minutos',
+    'nav.gardenTip': 'Recoge leña gratis del jardín cada 8 minutos del ritmo del tiempo',
     'nav.shop': '🛒 Tienda',
     'nav.shopTip': 'Compra leña y cerillas con puntos de calor',
     'nav.achTip': 'Logros',
@@ -149,9 +149,10 @@ const STR = {
       <h4>Controles</h4>
       <p class="muted">Arrastrar con la mano o con el botón derecho: girar la vista 3D · Rueda: acercar (o girar la pieza que llevas) · Doble clic o C: centrar vista.</p>
       <p class="muted">1–5 herramientas · Espacio: fuelle · R: girar la pieza · Clic derecho/Esc: soltar herramienta.</p>
-      <p class="muted">Ganas puntos ✨ con el fuego encendido y la casa entre 19 y 25 °C. Úsalos en la tienda. El jardín te da leña gratis cada pocos minutos.</p>`,
+      <p class="muted">Ganas puntos ✨ con el fuego encendido y la casa entre 19 y 25 °C. Úsalos en la tienda. El jardín te da leña gratis cada 8 minutos del ritmo del tiempo.</p>`,
     'settings.title': '⚙️ Ajustes',
     'settings.time': 'Ritmo del tiempo',
+    'contact.mail': 'Escríbeme',
     'settings.timeHint': '(acelera la combustión para jugar más rápido)',
     'settings.game': 'Partida',
     'settings.reset': 'Empezar de cero',
@@ -230,7 +231,7 @@ const STR = {
     'hud.faster': 'Faster',
     'hud.pointsTip': 'Heat points',
     'nav.garden': '🌲 Garden',
-    'nav.gardenTip': 'Gather free firewood from the garden every few minutes',
+    'nav.gardenTip': 'Gather free firewood from the garden every 8 minutes of game time',
     'nav.shop': '🛒 Shop',
     'nav.shopTip': 'Buy firewood and matches with heat points',
     'nav.achTip': 'Achievements',
@@ -352,9 +353,10 @@ const STR = {
       <h4>Controls</h4>
       <p class="muted">Drag with the hand or the right button: orbit the 3D view · Scroll: zoom (or rotate the piece you are holding) · Double-click or C: center the view.</p>
       <p class="muted">1–5 tools · Space: bellows · R: rotate the piece · Right-click/Esc: drop the tool.</p>
-      <p class="muted">You earn ✨ points with the fire lit and the house between 19 and 25 °C. Spend them in the shop. The garden gives free firewood every few minutes.</p>`,
+      <p class="muted">You earn ✨ points with the fire lit and the house between 19 and 25 °C. Spend them in the shop. The garden gives free firewood every 8 minutes of game time.</p>`,
     'settings.title': '⚙️ Settings',
     'settings.time': 'Time speed',
+    'contact.mail': 'Email me',
     'settings.timeHint': '(speeds up combustion so you can play faster)',
     'settings.game': 'Game',
     'settings.reset': 'Start over',

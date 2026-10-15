@@ -12,13 +12,21 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <meta name="apple-mobile-web-app-title" content="FireGochi" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="src/style.css?v=1.26" />
+  <link rel="stylesheet" href="src/style.css?v=1.33" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/"
+      }
+    }
+  </script>
   <script>
     // Si el juego no llega a arrancar, lo dice en pantalla en vez de quedarse congelado.
     (function () {
       var errors = [];
       function show(extra) {
-        if (window.__chimenea || document.getElementById('boot-error')) return;
+        if (window.__chimenea || document.getElementById('boot-error') || document.getElementById('gl-help')) return;
         var en = (localStorage.getItem('firegochi-lang') || navigator.language || '').indexOf('en') === 0;
         var box = document.createElement('div');
         box.id = 'boot-error';
@@ -46,7 +54,7 @@
 
   <div id="hud" class="panel">
     <div id="brand">
-      <span class="brand-name">🔥 FireGochi <span class="ver">v1.26</span></span>
+      <span class="brand-name">🔥 FireGochi <span class="ver">v1.33</span></span>
       <span id="lang-switch" class="lang-switch">
         <button type="button" class="lang-btn" data-lang="es" title="Español">ES</button>
         <button type="button" class="lang-btn" data-lang="en" title="English">EN</button>
@@ -78,6 +86,7 @@
       <span class="spd-mid"><span data-i18n="settings.time">Ritmo del tiempo</span> <b id="spd-val">x1</b></span>
       <button type="button" class="spd-btn" id="spd-up" data-i18n-title="hud.faster" title="Más rápido">»</button>
     </div>
+    <a id="contact" href="mailto:info@firegochi.com" data-i18n-title="contact.mail" title="Escríbeme">info@firegochi.com</a>
   </div>
 
   <div id="status" class="panel"></div>
@@ -114,8 +123,16 @@
     </div>
   </div>
 
+  <div id="rotate">
+    <div>
+      <div class="rotate-icon" aria-hidden="true">📱</div>
+      <p>Gira el móvil en vertical</p>
+      <p class="en">Turn your phone upright</p>
+    </div>
+  </div>
+
   <noscript>Este juego necesita JavaScript. This game needs JavaScript.</noscript>
-  <script type="module" src="src/main.js?v=1.26"></script>
+  <script type="module" src="src/main.js?v=1.33"></script>
   <script>
     if ('serviceWorker' in navigator) {
       let refreshed = false;
@@ -125,7 +142,7 @@
         location.reload();
       });
       window.addEventListener('load', async () => {
-        const reg = await navigator.serviceWorker.register('sw.js?v=1.26');
+        const reg = await navigator.serviceWorker.register('sw.js?v=1.33');
         if (reg.waiting) reg.waiting.postMessage({ type: 'skip' });
         const sw = (await navigator.serviceWorker.ready).active;
         const urls = performance.getEntriesByType('resource').map((r) => r.name).filter((u) => u.startsWith(location.origin));
