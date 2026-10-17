@@ -32,6 +32,7 @@ function notifyVisit(ui) {
     lang: navigator.language,
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
     screen: `${screen.width}x${screen.height}`,
+    os: clientOS(),
     name: player.name || '',
     playerId: player.id || '',
   };
@@ -45,31 +46,80 @@ function notifyVisit(ui) {
 
 const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const apple = ios || /Macintosh|Mac OS X/.test(navigator.userAgent);
-const dprCap = ios ? 1.25 : 1.75;
+const dprCap = apple ? 1.25 : 1.75;
 
-// Un canvas en el que falló getContext puede quedar inservible: cada intento usa uno nuevo.
-function createRenderer() {
-  const first = apple ? 'low-power' : 'high-performance';
+function clientOS() {
+  const ua = navigator.userAgent;
+  const ipad = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  if (ipad || /iPhone|iPad|iPod/.test(ua)) return 'iOS';
+  return navigator.userAgentData?.platform
+    || (/Android/.test(ua) ? 'Android'
+      : /Mac OS X/.test(ua) ? 'macOS'
+      : /Windows/.test(ua) ? 'Windows'
+      : /Linux/.test(ua) ? 'Linux'
+      : 'desconocido');
+}
+
+// En Mac, pedir «low-power» hace que Safari y Chrome devuelvan un contexto nulo
+// y el canvas quede inservible. No se indica preferencia de GPU.
+function replaceCanvas(canvas, gl) {
+  try { gl?.getExtension('WEBGL_lose_context')?.loseContext(); } catch { /* ya perdido */ }
+  const fresh = canvas.cloneNode(false);
+  canvas.replaceWith(fresh);
+  return fresh;
+}
+
+function requestGL(canvas, attrs) {
+  let reason = '';
+  const onErr = (e) => { reason = e.statusMessage || reason; };
+  canvas.addEventListener('webglcontextcreationerror', onErr);
+  let gl = null;
+  try {
+    gl = canvas.getContext('webgl2', attrs);
+  } catch (err) {
+    reason = err.message || reason;
+  }
+  canvas.removeEventListener('webglcontextcreationerror', onErr);
+  return { gl, reason };
+}
+
+async function createRenderer() {
+  const base = {
+    alpha: false, depth: true, stencil: false, antialias: false,
+    premultipliedAlpha: true, preserveDrawingBuffer: false, failIfMajorPerformanceCaveat: false,
+  };
   const attempts = [
-    { antialias: !ios, powerPreference: first },
-    { antialias: false, powerPreference: 'default' },
-    { antialias: false, powerPreference: apple ? 'high-performance' : 'low-power' },
-    { antialias: false, powerPreference: 'default', precision: 'mediump', stencil: false },
+    { ...base, antialias: !apple },
+    { ...base },
+    { ...base, powerPreference: 'high-performance' },
   ];
   let canvas = document.getElementById('scene');
-  let last;
-  for (const opts of attempts) {
-    try {
-      return new THREE.WebGLRenderer({ canvas, failIfMajorPerformanceCaveat: false, ...opts });
-    } catch (err) {
-      last = err;
-      const fresh = canvas.cloneNode(false);
-      canvas.replaceWith(fresh);
-      canvas = fresh;
+  const reasons = [];
+  const tryAll = () => {
+    for (const attrs of attempts) {
+      const { gl, reason } = requestGL(canvas, attrs);
+      if (reason) reasons.push(reason);
+      if (!gl) {
+        canvas = replaceCanvas(canvas);
+        continue;
+      }
+      try {
+        return new THREE.WebGLRenderer({ canvas, context: gl, ...attrs });
+      } catch (err) {
+        reasons.push(err.message || String(err));
+        canvas = replaceCanvas(canvas, gl);
+      }
     }
+    return null;
+  };
+  let renderer = tryAll();
+  if (!renderer) {
+    await new Promise((r) => setTimeout(r, 700));
+    renderer = tryAll();
   }
-  showWebGLHelp();
-  throw last;
+  if (renderer) return renderer;
+  showWebGLHelp(reasons);
+  throw new Error(reasons.filter(Boolean).join(' | ') || 'WebGL');
 }
 
 function canGet(type) {
@@ -80,7 +130,22 @@ function canGet(type) {
   }
 }
 
-function showWebGLHelp() {
+function showWebGLHelp(reasons = []) {
+  const detail = [...new Set(reasons.map((r) => String(r).trim()).filter(Boolean))].slice(0, 3).join(' | ');
+  if (location.hostname.replace(/^www\./, '') === 'firegochi.com') {
+    fetch(new URL('api/visit.php', location.href), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        page: location.href,
+        lang: navigator.language,
+        screen: `${screen.width}x${screen.height}`,
+        os: clientOS(),
+        gl: detail || 'sin contexto WebGL',
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  }
   const en = localStorage.getItem('firegochi-lang') === 'en';
   const gl2 = canGet('webgl2'), gl1 = canGet('webgl') || canGet('experimental-webgl');
   const steps = en ? [
@@ -98,13 +163,13 @@ function showWebGLHelp() {
     <h3>${en ? 'Your browser cannot show 3D graphics' : 'Tu navegador no puede mostrar gráficos 3D'}</h3>
     <p>${en ? 'FireGochi needs <b>WebGL 2</b> and the browser refused to create it. Usually it is fixed like this:' : 'FireGochi necesita <b>WebGL 2</b> y el navegador no ha podido crearlo. Normalmente se arregla así:'}</p>
     <ol>${steps.map((s) => `<li>${s}</li>`).join('')}</ol>
-    <p class="gl-diag">WebGL 2: ${gl2 ? '✔' : '✘'} · WebGL 1: ${gl1 ? '✔' : '✘'}<br>${navigator.userAgent.replace(/</g, '')}</p>
+    <p class="gl-diag">WebGL 2: ${gl2 ? '✔' : '✘'} · WebGL 1: ${gl1 ? '✔' : '✘'}${detail ? `<br>${detail.replace(/</g, '')}` : ''}<br>${navigator.userAgent.replace(/</g, '')}</p>
     <button type="button" class="btn" onclick="location.reload()">${en ? 'Retry' : 'Reintentar'}</button>
   </div>`;
   document.body.appendChild(box);
 }
 
-const renderer = createRenderer();
+const renderer = await createRenderer();
 const canvas = renderer.domElement;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
 renderer.setSize(window.innerWidth, window.innerHeight);

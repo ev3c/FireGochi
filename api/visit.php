@@ -1,6 +1,6 @@
 <?php
 // Avisa a info@firegochi.com cuando alguien abre firegochi.com.
-// POST JSON opcional: page, referrer, lang, tz, screen, name, playerId.
+// POST JSON opcional: page, referrer, lang, tz, screen, os, name, playerId.
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -75,6 +75,8 @@ $referrer = one_line($in['referrer'] ?? ($_SERVER['HTTP_REFERER'] ?? ''), 300);
 $lang = one_line($in['lang'] ?? ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''), 80);
 $tz = one_line($in['tz'] ?? '', 60);
 $screen = one_line($in['screen'] ?? '', 40);
+$os = one_line($in['os'] ?? '', 40);
+$gl = one_line($in['gl'] ?? '', 300);
 $name = one_line($in['name'] ?? '', 20);
 $playerId = one_line(preg_replace('/[^a-zA-Z0-9-]/', '', (string) ($in['playerId'] ?? '')), 40);
 $when = date('Y-m-d H:i:s T');
@@ -90,6 +92,8 @@ $body = "Nueva conexión a FireGochi\n\n"
   . "Idioma: $lang\n"
   . "Zona horaria: " . ($tz !== '' ? $tz : '—') . "\n"
   . "Pantalla: " . ($screen !== '' ? $screen : '—') . "\n"
+  . "Sistema operativo: " . ($os !== '' ? $os : '—') . "\n"
+  . ($gl !== '' ? "WebGL: $gl\n" : '')
   . "Jugador: " . ($name !== '' ? $name : 'sin nombre') . "\n"
   . "Id de partida: " . ($playerId !== '' ? $playerId : '—') . "\n";
 
