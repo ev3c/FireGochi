@@ -68,6 +68,7 @@ function defaultState() {
     speed: 1,
     sound: true,
     tutorialSeen: false,
+    remind: false,
     coldSnapComfort: 0,
   };
 }

@@ -14,6 +14,8 @@ const TOOLS = [
   { id: 'water', icon: '🪣', key: '5' },
 ];
 
+const touchScreen = () => matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1;
+
 function fmtDuration(s) {
   s = Math.max(0, Math.floor(s));
   const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
@@ -32,13 +34,24 @@ export class UI {
     this.modalBody = this.$('modal-body');
     this.$('modal-close').onclick = () => this.closeModal();
     this.modal.addEventListener('pointerdown', (e) => { if (e.target === this.modal) this.closeModal(); });
-    // Botón Atrás de Android: cierra la ventana abierta en vez de salir del juego.
+    this.$('confirm-yes').onclick = () => this.resolveConfirm?.(true);
+    this.$('confirm-no').onclick = () => this.resolveConfirm?.(false);
+    this.$('confirm').addEventListener('pointerdown', (e) => { if (e.target.id === 'confirm') this.resolveConfirm?.(false); });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.resolveConfirm?.(false); });
+    // Botón Atrás (Android o navegador): una entrada extra en el historial lo intercepta para cerrar
+    // la ventana abierta o preguntar antes de salir. Chrome se salta las entradas añadidas sin un gesto
+    // del usuario, así que se vuelve a armar en el siguiente toque.
+    this.trapped = !!history.state?.firegochi;
+    const arm = (e) => { if (!e.target.closest?.('#confirm')) this.armTrap(); };
+    window.addEventListener('pointerdown', arm, true);
+    window.addEventListener('keydown', arm, true);
     window.addEventListener('popstate', () => {
-      if (this.ignorePop) { this.ignorePop = false; return; }
-      if (!this.modal.classList.contains('open')) return;
-      this.historyOpen = false;
-      this.closeModal();
-      if (this.modal.classList.contains('open')) this.pushModalState();
+      if (this.leaving) return;
+      this.trapped = false;
+      if (this.resolveConfirm) this.resolveConfirm(false);
+      else if (this.modal.classList.contains('open')) this.closeModal();
+      else return this.askExit();
+      this.armTrap();
     });
     this.lastStatus = '';
     this.view = null;
@@ -60,6 +73,7 @@ export class UI {
     const cur = i >= 0 ? i : SPEEDS.findIndex((s) => s >= st.speed);
     st.speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, cur + dir))];
     this.refresh();
+    this.advanceTutorial('speed');
     if (this.view === 'settings') this.openSettings();
   }
 
@@ -87,6 +101,7 @@ export class UI {
     else if (view === 'ach') this.openAchievements();
     else if (view === 'help') this.openHelp();
     else if (view === 'settings') this.openSettings();
+    else if (view === 'points') this.openPoints();
     else if (view === 'offline') this.showOffline(this.offlineReport);
     else if (view === 'gameover') this.showGameOver();
     else if (view === 'name') this.askName();
@@ -97,9 +112,10 @@ export class UI {
       const b = document.querySelector(`[data-tool="${tool.id}"]`);
       if (!b) continue;
       b.querySelector('.nm').textContent = t(`tool.${tool.id}.name`);
-      b.title = `${t(`tool.${tool.id}.name`)} (${tool.key}) — ${t(`tool.${tool.id}.tip`)}`;
+      b.title = `${t(`tool.${tool.id}.name`)} (${tool.key}) — ${t(touchScreen() ? `tool.${tool.id}.tipTouch` : `tool.${tool.id}.tip`)}`;
     }
     if (this.ix) this.setActiveTool(this.ix.tool, this.ix.placeKey);
+    if (this.coachStep) this.showCoach();
   }
 
   bind(game, interaction) {
@@ -111,7 +127,7 @@ export class UI {
       const b = document.createElement('button');
       b.className = 'slot tool';
       b.dataset.tool = tool.id;
-      b.title = `${t(`tool.${tool.id}.name`)} (${tool.key}) — ${t(`tool.${tool.id}.tip`)}`;
+      b.title = `${t(`tool.${tool.id}.name`)} (${tool.key}) — ${t(touchScreen() ? `tool.${tool.id}.tipTouch` : `tool.${tool.id}.tip`)}`;
       b.innerHTML = `<span class="ic">${tool.icon}</span><span class="nm">${t(`tool.${tool.id}.name`)}</span><span class="ct" id="ct-${tool.id}"></span>`;
       if (tool.id === 'bellows') {
         b.addEventListener('pointerdown', () => { this.ix.audio.start(); this.ix.bellowsHeld = true; });
@@ -126,6 +142,7 @@ export class UI {
     this.$('btn-ach').onclick = () => this.openAchievements();
     this.$('btn-help').onclick = () => this.openHelp();
     this.$('btn-settings').onclick = () => this.openSettings();
+    this.$('btn-points').onclick = () => this.openPoints();
     this.$('btn-sound').onclick = () => {
       game.state.sound = !game.state.sound;
       this.ix.audio.setEnabled(game.state.sound);
@@ -133,6 +150,12 @@ export class UI {
     };
     this.refreshInventory();
     this.refresh();
+    const bar = this.$('toolbar');
+    bar.addEventListener('scroll', () => this.updateBarMore(), { passive: true });
+    this.$('bar-left').onclick = () => { bar.scrollBy({ left: -180, behavior: 'smooth' }); };
+    this.$('bar-right').onclick = () => { bar.scrollBy({ left: 180, behavior: 'smooth' }); };
+    this.$('coach-skip').onclick = () => this.finishTutorial(false);
+    window.addEventListener('resize', () => { this.updateBarMore(); this.placeCoach(); });
   }
 
   refreshInventory() {
@@ -184,6 +207,22 @@ export class UI {
     }
     this.setActiveTool(this.ix.tool, this.ix.placeKey);
     this.$('ct-match').textContent = this.game.state.matches;
+    this.updateBarMore();
+    if (this.coachStep) this.showCoach();
+  }
+
+  updateBarMore() {
+    const bar = this.$('toolbar');
+    if (!bar) return;
+    // Quitar .pad para medir recorta scrollLeft y deja el último objeto bajo la flecha.
+    const extra = bar.classList.contains('pad') ? 56 : 0;
+    const overflows = bar.scrollWidth - extra - bar.clientWidth > 8;
+    if (bar.classList.contains('pad') !== overflows) bar.classList.toggle('pad', overflows);
+    const max = bar.scrollWidth - bar.clientWidth;
+    this.$('bar-left').hidden = !overflows || bar.scrollLeft < 8;
+    this.$('bar-right').hidden = !overflows || bar.scrollLeft > max - 8;
+    this.$('bar-left').title = t('bar.left');
+    this.$('bar-right').title = t('bar.right');
   }
 
   setActiveTool(tool, key) {
@@ -191,12 +230,91 @@ export class UI {
       el.classList.toggle('active', (el.dataset.tool && el.dataset.tool === tool) || (tool === 'place' && el.dataset.key === key));
     });
     const hint = this.$('hint');
+    const touch = touchScreen();
     if (tool === 'place') {
       const id = key.split(':')[0];
-      hint.textContent = t('hint.place', { name: fuelShort(id).toLowerCase() });
+      hint.textContent = t(touch ? 'hint.placeTouch' : 'hint.place', { name: fuelShort(id).toLowerCase() });
     } else {
-      hint.textContent = t(`tool.${tool || 'hand'}.tip`);
+      const id = tool || 'hand';
+      hint.textContent = t(touch ? `tool.${id}.tipTouch` : `tool.${id}.tip`);
     }
+  }
+
+  startTutorial() {
+    if (this.game.state.tutorialSeen || this.game.state.dead) return;
+    this.coachStep = 'paper';
+    this.showCoach();
+  }
+
+  advanceTutorial(step) {
+    if (this.coachStep !== step) return;
+    const next = { paper: 'kindling', kindling: 'match', match: 'speed', speed: 'garden', garden: 'shop', shop: null };
+    this.coachStep = next[step];
+    if (!this.coachStep) this.finishTutorial(true);
+    else this.showCoach();
+  }
+
+  finishTutorial(done) {
+    this.game.state.tutorialSeen = true;
+    this.coachStep = null;
+    document.querySelector('.coach-target')?.classList.remove('coach-target');
+    this.$('coach').hidden = true;
+    this.$('toasts').style.top = '';
+    this.game.save();
+    if (done) this.toast(t('tut.done'), '🔥');
+  }
+
+  showCoach() {
+    if (!this.coachStep) return;
+    const coach = this.$('coach');
+    this.$('coach-text').textContent = t(`tut.${this.coachStep}`);
+    this.$('coach-skip').textContent = t('tut.skip');
+    coach.hidden = false;
+    document.querySelector('.coach-target')?.classList.remove('coach-target');
+    const selectors = { match: '[data-tool="match"]', speed: '#speed', garden: '#btn-garden', shop: '#btn-shop' };
+    const target = document.querySelector(selectors[this.coachStep] || `[data-key="${this.coachStep}"]`);
+    if (target) {
+      target.classList.add('coach-target');
+      target.scrollIntoView({ inline: 'center', block: 'nearest' });
+    }
+    this.placeCoach();
+    this.updateBarMore();
+  }
+
+  placeCoach() {
+    const coach = this.$('coach');
+    const toasts = this.$('toasts');
+    if (!coach || coach.hidden) {
+      if (toasts) toasts.style.top = '';
+      return;
+    }
+    const target = document.querySelector('.coach-target');
+    const atTop = target && !this.$('bottom').contains(target);
+    if (atTop) {
+      const r = target.getBoundingClientRect();
+      const hud = this.$('hud').getBoundingClientRect();
+      const half = coach.offsetWidth / 2;
+      const center = Math.min(window.innerWidth - half - 8, Math.max(half + 8, r.left + r.width / 2));
+      let top = r.bottom + 8;
+      const left = center - half;
+      if (left < hud.right && center + half > hud.left && top < hud.bottom) top = hud.bottom + 8;
+      top = Math.min(top, window.innerHeight - coach.offsetHeight - 8);
+      coach.style.bottom = 'auto';
+      coach.style.left = `${center}px`;
+      coach.style.top = `${top}px`;
+      if (toasts) {
+        const coachRight = center + half;
+        const overlaps = coachRight > window.innerWidth - 340 && top < 160;
+        toasts.style.top = overlaps ? `${Math.round(top + coach.offsetHeight + 8)}px` : '';
+      }
+      return;
+    }
+    if (toasts) toasts.style.top = '';
+    target?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    coach.style.left = '50%';
+    coach.style.top = 'auto';
+    const bottom = this.$('bottom').getBoundingClientRect();
+    coach.style.bottom = `${Math.max(8, window.innerHeight - bottom.top + 8)}px`;
   }
 
   statusText() {
@@ -329,6 +447,7 @@ export class UI {
       this.closeModal();
       this.refreshInventory();
       this.refresh();
+      this.startTutorial();
       this.toast(t('toast.newGame'), '🔥');
     };
   }
@@ -359,13 +478,6 @@ export class UI {
     this.modalBody.innerHTML = html;
     this.$('modal-close').hidden = this.view === 'gameover';
     this.modal.classList.add('open');
-    this.pushModalState();
-  }
-
-  pushModalState() {
-    if (this.historyOpen) return;
-    this.historyOpen = true;
-    history.pushState({ firegochiModal: true }, '');
   }
 
   closeModal() {
@@ -373,14 +485,64 @@ export class UI {
     if (this.view === 'name') this.world.anonymous = true;
     this.view = null;
     this.modal.classList.remove('open');
-    if (this.historyOpen) {
-      this.historyOpen = false;
-      this.ignorePop = true;
-      history.back();
+  }
+
+  armTrap() {
+    if (this.trapped || this.leaving) return;
+    this.trapped = true;
+    history.pushState({ firegochi: true }, '');
+  }
+
+  askConfirm({ title, text, yes, danger = false }) {
+    this.resolveConfirm?.(false);
+    this.$('confirm-title').textContent = title;
+    this.$('confirm-text').textContent = text;
+    const yesBtn = this.$('confirm-yes');
+    yesBtn.textContent = yes;
+    yesBtn.classList.toggle('danger', danger);
+    this.$('confirm-no').textContent = t('confirm.no');
+    this.$('confirm').hidden = false;
+    this.$('confirm-no').focus();
+    return new Promise((resolve) => {
+      this.resolveConfirm = (ok) => {
+        this.$('confirm').hidden = true;
+        this.resolveConfirm = null;
+        resolve(ok);
+      };
+    });
+  }
+
+  async askExit() {
+    this.game?.save();
+    const ok = await this.askConfirm({ title: t('exit.title'), text: t('exit.text'), yes: t('exit.yes'), danger: true });
+    if (!ok) {
+      this.armTrap();
+      return;
     }
+    this.leaving = true;
+    history.back();
+    // En la app instalada no hay página anterior: se intenta cerrar y, si no se puede,
+    // el siguiente Atrás del sistema sale porque la trampa ya no está armada.
+    setTimeout(() => {
+      if (document.hidden) return;
+      window.close();
+      this.leaving = false;
+    }, 400);
+  }
+
+  openPoints() {
+    this.view = 'points';
+    const n = Math.floor(this.game.state.points);
+    const ways = ['alive', 'comfort', 'steady', 'ach'].map((k) => `<li>${t(`points.${k}`)}</li>`).join('');
+    this.openModal(t('points.title'), `<p>${t('points.intro', { n })}</p>
+      <ul class="points-list">${ways}</ul>
+      <p class="muted">${t('points.note')}</p>
+      <div class="row-btns"><button class="btn" id="points-shop">${t('points.shop')}</button></div>`);
+    this.$('points-shop').onclick = () => this.openShop();
   }
 
   openShop() {
+    this.advanceTutorial('shop');
     this.view = 'shop';
     const g = this.game;
     const row = (icon, name, desc, have, buys) => `<div class="shop-row"><span class="ic">${icon}</span>
@@ -406,6 +568,7 @@ export class UI {
   }
 
   gather() {
+    this.advanceTutorial('garden');
     const loot = this.game.gatherGarden();
     if (!loot) {
       this.toast(t('toast.gardenWait', { min: Math.ceil(this.game.gardenStatus() / 60) }), '🌲');
@@ -437,15 +600,18 @@ export class UI {
     this.view = 'settings';
     const st = this.game.state;
     this.openModal(t('settings.title'), `
-      <p><b>${t('settings.time')}</b> <span class="muted">${t('settings.timeHint')}</span></p>
+      <p class="set-head"><b>${t('settings.time')}</b> <span class="muted">${t('settings.timeHint')}</span></p>
       <div class="row-btns">${SPEEDS.map((s) => `<button class="btn spd ${st.speed === s ? 'on' : ''}" data-s="${s}">x${s}</button>`).join('')}</div>
-      <p><b>${t('world.nick')}</b> <span class="muted">${t('world.nickHint')}</span></p>
+      <p class="set-head"><b>${t('world.nick')}</b> <span class="muted">${t('world.nickHint')}</span></p>
       <form id="nick-form" class="name-form">
         <input id="nick-input" type="text" maxlength="20" autocomplete="nickname" placeholder="${t('world.placeholder')}" />
         <button class="btn" type="submit">${t('world.save')}</button>
       </form>
+      ${'Notification' in window ? `<p class="set-head"><b>${t('remind.title')}</b> <span class="muted">${t('remind.hint')}</span></p>
+      <div class="row-btns"><button class="btn ${st.remind ? 'on' : ''}" id="remind">${t(st.remind ? 'remind.on' : 'remind.off')}</button></div>` : ''}
       <p><b>${t('settings.game')}</b></p>
-      <div class="row-btns"><button class="btn danger" id="reset">${t('settings.reset')}</button></div>`);
+      <div class="row-btns"><button class="btn danger" id="reset">${t('settings.reset')}</button></div>
+      <a id="contact" href="mailto:info@firegochi.com" title="${t('contact.mail')}">info@firegochi.com</a>`);
     this.$('nick-input').value = this.world.player.name;
     this.$('nick-form').onsubmit = (e) => {
       e.preventDefault();
@@ -453,15 +619,34 @@ export class UI {
       if (this.world.mine) this.world.send(this.world.seconds);
       this.toast(t('world.saved', { name: this.world.player.name || t('world.anon') }), '🌍');
     };
+    const remind = this.$('remind');
+    if (remind) remind.onclick = async () => {
+      if (st.remind) {
+        st.remind = false;
+        this.openSettings();
+        return;
+      }
+      const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+      if (perm !== 'granted') {
+        this.toast(t('remind.denied'), '🔔');
+        return;
+      }
+      st.remind = true;
+      this.game.save();
+      if (this.view === 'settings') this.openSettings();
+      this.toast(t('remind.saved'), '🔔');
+    };
     this.modalBody.querySelectorAll('.spd').forEach((b) => {
       b.onclick = () => { st.speed = Number(b.dataset.s); this.openSettings(); this.refresh(); };
     });
-    this.$('reset').onclick = () => {
-      if (!confirm(t('settings.confirm'))) return;
+    this.$('reset').onclick = async () => {
+      const ok = await this.askConfirm({ title: t('confirm.resetTitle'), text: t('settings.confirm'), yes: t('settings.reset'), danger: true });
+      if (!ok) return;
       this.game.reset();
       this.bodyRank = undefined;
       this.closeModal();
       this.refreshInventory();
+      this.startTutorial();
       this.toast(t('toast.newGame'), '🔥');
     };
   }

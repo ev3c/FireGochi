@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <meta name="apple-mobile-web-app-title" content="FireGochi" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="src/style.css?v=1.35" />
+  <link rel="stylesheet" href="src/style.css?v=1.43" />
   <script type="importmap">
     {
       "imports": {
@@ -54,7 +54,7 @@
 
   <div id="hud" class="panel">
     <div id="brand">
-      <span class="brand-name">🔥 FireGochi <span class="ver">v1.35</span></span>
+      <span class="brand-name">🔥 FireGochi <span class="ver">v1.43</span></span>
       <span id="lang-switch" class="lang-switch">
         <button type="button" class="lang-btn" data-lang="es" title="Español">ES</button>
         <button type="button" class="lang-btn" data-lang="en" title="English">EN</button>
@@ -66,7 +66,7 @@
         <div class="lbl" data-i18n="hud.fire">Fuego</div>
         <div id="level">Apagado</div>
       </div>
-      <div class="pts" data-i18n-title="hud.pointsTip" title="Puntos de calor"><span id="points">0</span> ✨</div>
+      <button type="button" class="pts" id="btn-points" data-i18n-title="hud.pointsTip" title="Puntos de calor"><span id="points">0</span> ✨</button>
     </div>
     <div class="bar-row"><span data-i18n="hud.flame">Llama</span><div class="bar"><i id="bar-fire"></i></div></div>
     <div class="bar-row"><span data-i18n="hud.air">Aire</span><div class="bar air"><i id="bar-air"></i></div></div>
@@ -85,11 +85,7 @@
       <button type="button" class="spd-btn" id="spd-down" data-i18n-title="hud.slower" title="Más lento">«</button>
       <span class="spd-mid"><span data-i18n="settings.time">Ritmo del tiempo</span> <b id="spd-val">x1</b></span>
       <button type="button" class="spd-btn" id="spd-up" data-i18n-title="hud.faster" title="Más rápido">»</button>
-    </div>
-    <a id="contact" href="mailto:info@firegochi.com" data-i18n-title="contact.mail" title="Escríbeme">info@firegochi.com</a>
-  </div>
-
-  <div id="status" class="panel"></div>
+    </div>  </div>
 
   <div id="topbar">
     <div class="topbar-row topbar-actions">
@@ -105,11 +101,32 @@
   </div>
 
   <div id="bottom">
+    <div id="status" class="panel"></div>
     <div id="hint"></div>
-    <div id="toolbar" class="panel">
-      <div id="tools"></div>
-      <div class="sep"></div>
-      <div id="inventory"></div>
+    <div id="bar-wrap">
+      <button type="button" class="bar-more" id="bar-left" hidden>‹</button>
+      <div id="toolbar" class="panel">
+        <div id="tools"></div>
+        <div class="sep"></div>
+        <div id="inventory"></div>
+      </div>
+      <button type="button" class="bar-more" id="bar-right" hidden>›</button>
+    </div>
+  </div>
+
+  <div id="coach" class="panel" hidden>
+    <p id="coach-text"></p>
+    <button type="button" class="btn" id="coach-skip"></button>
+  </div>
+
+  <div id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
+    <div class="confirm-card panel">
+      <h3 id="confirm-title"></h3>
+      <p id="confirm-text"></p>
+      <div class="row-btns confirm-btns">
+        <button type="button" class="btn" id="confirm-no"></button>
+        <button type="button" class="btn" id="confirm-yes"></button>
+      </div>
     </div>
   </div>
 
@@ -132,7 +149,7 @@
   </div>
 
   <noscript>Este juego necesita JavaScript. This game needs JavaScript.</noscript>
-  <script type="module" src="src/main.js?v=1.35"></script>
+  <script type="module" src="src/main.js?v=1.43"></script>
   <script>
     if ('serviceWorker' in navigator) {
       let refreshed = false;
@@ -142,7 +159,7 @@
         location.reload();
       });
       window.addEventListener('load', async () => {
-        const reg = await navigator.serviceWorker.register('sw.js?v=1.35');
+        const reg = await navigator.serviceWorker.register('sw.js?v=1.43');
         if (reg.waiting) reg.waiting.postMessage({ type: 'skip' });
         const sw = (await navigator.serviceWorker.ready).active;
         const urls = performance.getEntriesByType('resource').map((r) => r.name).filter((u) => u.startsWith(location.origin));

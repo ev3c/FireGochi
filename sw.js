@@ -29,6 +29,17 @@ self.addEventListener('message', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => Promise.all(urls.map((u) => c.add(u).catch(() => {})))));
 });
 
+// Al tocar el aviso de «el fuego se apaga», vuelve a la partida abierta o la abre.
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const open = list.find((c) => 'focus' in c);
+      return open ? open.focus() : self.clients.openWindow('./');
+    })
+  );
+});
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);

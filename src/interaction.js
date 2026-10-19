@@ -47,6 +47,11 @@ export class Interaction {
     this.bucketMesh = this.buildBucket();
     this.drops = this.buildDrops();
     this.waterHeld = false;
+    this.pointers = new Map();
+    this.pinch = null;
+    this.placeGesture = null;
+    this.press = null;
+    this.tipUntil = 0;
     this.bucketWater = 1;
     this.bucketTilt = BUCKET.idle;
     this.pourFlow = 0;
@@ -55,6 +60,7 @@ export class Interaction {
     dom.addEventListener('pointermove', (e) => this.onMove(e));
     dom.addEventListener('pointerdown', (e) => this.onDown(e));
     window.addEventListener('pointerup', (e) => this.onUp(e));
+    window.addEventListener('pointercancel', (e) => this.onUp(e));
     dom.addEventListener('pointerleave', () => { if (!this.rig.drag) { this.hasPointer = false; this.ui.hideTip(); } });
     dom.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
     dom.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -524,42 +530,105 @@ export class Interaction {
     return { p, q: this.placeQuat(type) };
   }
 
+  pointerSpan() {
+    const pts = [...this.pointers.values()];
+    if (pts.length < 2) return 0;
+    return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  }
+
+  pointerMid() {
+    const pts = [...this.pointers.values()];
+    return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  }
+
   onMove(e) {
+    if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.pointers.size >= 2 && this.pinch) {
+      const span = this.pointerSpan();
+      const mid = this.pointerMid();
+      this.rig.zoom((this.pinch.span - span) * 1.6);
+      if (!this.rig.drag) this.rig.begin(this.pinch.x, this.pinch.y, 0);
+      this.rig.move(mid.x, mid.y);
+      this.pinch = { span, x: mid.x, y: mid.y };
+      return;
+    }
+    const g = this.placeGesture;
+    if (g && e.pointerId === g.id) {
+      const dx = e.clientX - g.x;
+      const dy = e.clientY - g.y;
+      g.x = e.clientX;
+      g.y = e.clientY;
+      if (g.moved || Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 10) {
+        g.moved = true;
+        this.yaw += dx * 0.012;
+      }
+      void dy;
+    }
     this.updatePointer(e);
     if (this.rig.drag) this.rig.move(e.clientX, e.clientY);
   }
 
   onDown(e) {
+    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.updatePointer(e);
     this.audio.start();
     this.dom.setPointerCapture?.(e.pointerId);
+    if (this.pointers.size >= 2) {
+      this.placeGesture = null;
+      this.press = null;
+      this.rig.end();
+      const mid = this.pointerMid();
+      this.pinch = { span: this.pointerSpan(), x: mid.x, y: mid.y };
+      this.rig.begin(mid.x, mid.y, 0);
+      e.preventDefault();
+      return;
+    }
     // Girar la vista: botón derecho o central con cualquier herramienta, o izquierdo con la mano.
     if (e.button === 2 || e.button === 1 || (e.button === 0 && this.tool === 'hand')) {
       e.preventDefault();
       this.rig.begin(e.clientX, e.clientY, e.button);
+      if (e.button === 0) this.press = { id: e.pointerId, x: e.clientX, y: e.clientY, at: performance.now() };
       return;
     }
     if (e.button !== 0) return;
     switch (this.tool) {
-      case 'place': this.dropPiece(); break;
+      case 'place':
+        this.placeGesture = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false };
+        break;
       case 'match':
         if (this.match) this.blowOutMatch(true);
         else this.strikeMatch();
         break;
-      case 'poker': this.startPoke(); break;
+      case 'poker':
+        this.press = { id: e.pointerId, x: e.clientX, y: e.clientY, at: performance.now() };
+        this.startPoke();
+        break;
       case 'bellows': this.bellowsHeld = true; break;
       case 'water': this.waterHeld = true; break;
       default: break;
     }
   }
 
-  onUp() {
+  onUp(e) {
+    this.pointers.delete(e.pointerId);
+    if (this.placeGesture && e.pointerId === this.placeGesture.id) {
+      if (!this.placeGesture.moved) this.dropPiece();
+      this.placeGesture = null;
+    }
+    const held = this.press && e.pointerId === this.press.id ? performance.now() - this.press.at : 0;
+    if (this.press && e.pointerId === this.press.id) this.press = null;
+    if (this.pointers.size >= 2) return;
+    this.pinch = null;
+    if (this.pointers.size > 0) {
+      if (this.rig.drag) this.rig.end();
+      return;
+    }
     this.bellowsHeld = false;
     this.waterHeld = false;
     if (this.grab) this.endPoke();
-    const d = this.rig.end();
-    // Un clic derecho sin arrastrar suelta la herramienta.
-    if (d && d.button === 2 && !d.moved) this.setTool('hand');
+    const ended = this.rig.end();
+    if (held > 450 && ended && !ended.moved) this.tipUntil = performance.now() + 2500;
+    if (ended && ended.button === 2 && !ended.moved) this.setTool('hand');
   }
 
   onWheel(e) {
@@ -619,8 +688,9 @@ export class Interaction {
       this.game.sparks.burst(p.x, p.y - 0.05, p.z, 12, 0.8);
     }
     if (!this.game.state.inventory[key]) this.setTool('hand');
-    else this.ghost.mesh.rotation.set(0, 0, 0);
+    else if (this.ghost) this.ghost.mesh.rotation.set(0, 0, 0);
     this.ui.refreshInventory();
+    this.ui.advanceTutorial(type);
   }
 
   strikeMatch() {
@@ -632,6 +702,7 @@ export class Interaction {
     this.match = { life: 1, x: 0, y: 0.1, z: 0, age: 0 };
     this.matchMesh.visible = true;
     this.ui.refreshInventory();
+    this.ui.advanceTutorial('match');
   }
 
   blowOutMatch(dropped) {
@@ -805,17 +876,18 @@ export class Interaction {
     // Cubo de agua: al mantener pulsado se inclina y vierte sobre el punto señalado.
     this.poseBucket(dt);
 
-    // Información al pasar por encima.
-    if (this.rig.drag?.moved) {
+    // Información al pasar por encima, o al mantener pulsado en una pantalla táctil.
+    const pressing = this.press && performance.now() - this.press.at > 450 && !this.rig.drag?.moved;
+    if (this.rig.drag?.moved && !(this.tipUntil > performance.now())) {
       this.ui.hideTip();
-    } else if (this.hasPointer && (this.tool === 'hand' || this.tool === 'poker') && !this.grab) {
+    } else if (this.grab) {
+      this.ui.showTip(this.pointerPx, this.describe(this.grab.e));
+    } else if ((this.hasPointer || pressing) && (this.tool === 'hand' || this.tool === 'poker') && !this.grab) {
       const hit = this.pick(true, false);
       const e = hit && hit.entryId !== undefined ? g.entries.get(hit.entryId) : null;
       if (e) this.ui.showTip(this.pointerPx, this.describe(e));
-      else this.ui.hideTip();
-    } else if (this.grab) {
-      this.ui.showTip(this.pointerPx, this.describe(this.grab.e));
-    } else this.ui.hideTip();
+      else if (!(this.tipUntil > performance.now())) this.ui.hideTip();
+    } else if (!(this.tipUntil > performance.now())) this.ui.hideTip();
 
     return { bellows: this.bellows, match: matchInfo };
   }

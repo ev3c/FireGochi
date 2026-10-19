@@ -20,6 +20,26 @@ function one_line($value, $max) {
   return function_exists('mb_substr') ? mb_substr($value, 0, $max) : substr($value, 0, $max);
 }
 
+function country_name($ip) {
+  $cf = one_line($_SERVER['HTTP_CF_IPCOUNTRY'] ?? '', 8);
+  if ($cf !== '' && $cf !== 'XX' && $cf !== 'T1') return $cf;
+  if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) return '';
+  $url = 'https://ipwho.is/' . rawurlencode($ip);
+  $raw = false;
+  if (function_exists('curl_init')) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 2, CURLOPT_CONNECTTIMEOUT => 2]);
+    $raw = curl_exec($ch);
+    curl_close($ch);
+  }
+  if (!$raw) {
+    $ctx = stream_context_create(['http' => ['timeout' => 2]]);
+    $raw = @file_get_contents($url, false, $ctx);
+  }
+  $data = $raw ? json_decode($raw, true) : null;
+  return is_array($data) && !empty($data['success']) && !empty($data['country']) ? one_line($data['country'], 60) : '';
+}
+
 function client_ip() {
   $remote = $_SERVER['REMOTE_ADDR'] ?? '';
   $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
@@ -80,6 +100,7 @@ $gl = one_line($in['gl'] ?? '', 300);
 $name = one_line($in['name'] ?? '', 20);
 $playerId = one_line(preg_replace('/[^a-zA-Z0-9-]/', '', (string) ($in['playerId'] ?? '')), 40);
 $when = date('Y-m-d H:i:s T');
+$country = country_name($ip);
 
 $body = "Nueva conexión a FireGochi\n\n"
   . "Hora: $when\n"
@@ -93,6 +114,7 @@ $body = "Nueva conexión a FireGochi\n\n"
   . "Zona horaria: " . ($tz !== '' ? $tz : '—') . "\n"
   . "Pantalla: " . ($screen !== '' ? $screen : '—') . "\n"
   . "Sistema operativo: " . ($os !== '' ? $os : '—') . "\n"
+  . "País: " . ($country !== '' ? $country : '—') . "\n"
   . ($gl !== '' ? "WebGL: $gl\n" : '')
   . "Jugador: " . ($name !== '' ? $name : 'sin nombre') . "\n"
   . "Id de partida: " . ($playerId !== '' ? $playerId : '—') . "\n";

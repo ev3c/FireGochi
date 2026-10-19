@@ -72,7 +72,11 @@ html, body {
 @keyframes heat-pulse { 50% { transform: scale(1.12); filter: drop-shadow(0 0 6px #ff5a2a); } }
 .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 #level { font-size: 18px; font-weight: 600; }
-.pts { margin-left: auto; font-size: 17px; font-weight: 600; color: #ffd27a; white-space: nowrap; }
+.pts {
+  margin-left: auto; font-size: 17px; font-weight: 600; color: #ffd27a; white-space: nowrap;
+  background: none; border: 0; padding: 2px 4px; border-radius: 8px; font-family: inherit; cursor: pointer; touch-action: manipulation;
+}
+.pts:hover { background: rgba(255, 210, 122, 0.12); }
 .bar-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
 .bar-row span { width: 46px; color: var(--muted); font-size: 12px; }
 .bar { flex: 1; height: 8px; background: rgba(255, 255, 255, 0.08); border-radius: 6px; overflow: hidden; }
@@ -102,8 +106,8 @@ html, body {
 #speed .spd-mid { flex: 1; text-align: center; color: var(--muted); white-space: nowrap; }
 #speed .spd-mid b { color: #ffd27a; font-weight: 700; }
 #contact {
-  display: block; margin-top: 6px; text-align: center;
-  font-size: 11px; color: var(--muted); text-decoration: none;
+  display: block; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); text-align: center;
+  font-size: 13px; color: var(--muted); text-decoration: none;
 }
 #contact:hover { color: var(--accent); }
 .spd-btn {
@@ -115,9 +119,9 @@ html, body {
 .spd-btn:disabled { opacity: 0.3; cursor: default; }
 
 #status {
-  position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
-  max-width: min(560px, calc(100vw - 560px)); padding: 10px 16px; font-size: 14px; text-align: center; line-height: 1.35;
+  max-width: min(640px, 100%); padding: 8px 14px; font-size: 14px; text-align: center; line-height: 1.35;
 }
+#status:empty { display: none; }
 
 #topbar { position: fixed; top: 12px; right: 12px; display: flex; gap: 6px; }
 .topbar-row { display: flex; gap: 6px; }
@@ -126,8 +130,40 @@ html, body {
   position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: calc(100vw - 16px);
 }
-#hint { font-size: 12px; color: var(--muted); text-shadow: 0 1px 3px #000; text-align: center; }
-#toolbar { display: flex; align-items: stretch; gap: 6px; padding: 8px; overflow-x: auto; max-width: 100%; touch-action: pan-x; }
+#hint { max-width: min(720px, 100%); padding: 0 8px; font-size: 12px; color: var(--muted); text-shadow: 0 1px 3px #000; text-align: center; }
+#bar-wrap { position: relative; max-width: 100%; }
+#toolbar { display: flex; align-items: stretch; gap: 6px; padding: 8px; overflow-x: auto; max-width: 100%; touch-action: pan-x; scrollbar-width: thin; }
+#toolbar.pad { padding-left: 36px; }
+#toolbar.pad::after { content: ''; flex: 0 0 22px; }
+.bar-more {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 28px; height: 46px; padding: 0; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: rgba(18, 11, 7, 0.92); color: var(--text);
+  font-size: 22px; line-height: 1;
+}
+.bar-more[hidden] { display: none; }
+#bar-left { left: 4px; }
+#bar-right { right: 4px; }
+#coach {
+  position: fixed; left: 50%; z-index: 8; transform: translateX(-50%);
+  display: flex; gap: 10px; align-items: center;
+  width: min(460px, calc(100vw - 24px)); padding: 10px 12px;
+}
+#coach[hidden] { display: none; }
+#coach.panel {
+  background: #f0d7a1; border-color: #c8913f; color: #3a2210;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55), 0 0 0 3px rgba(240, 215, 161, 0.25);
+}
+#coach p { margin: 0; flex: 1; font-size: 14px; line-height: 1.35; font-weight: 500; }
+#coach .btn { flex-shrink: 0; background: rgba(90, 52, 20, 0.12); border-color: #b07a35; color: #3a2210; }
+#coach .btn:hover { background: rgba(90, 52, 20, 0.22); }
+.coach-target {
+  position: relative; z-index: 7;
+  outline: 2px solid var(--accent);
+  box-shadow: 0 0 0 4px rgba(255, 154, 60, 0.4), 0 0 16px rgba(255, 140, 50, 0.65);
+  animation: coach-pulse 1.2s ease-in-out infinite;
+}
+@keyframes coach-pulse { 50% { box-shadow: 0 0 0 7px rgba(255, 154, 60, 0.15), 0 0 18px rgba(255, 140, 50, 0.8); } }
 #tools, #inventory { display: flex; gap: 6px; }
 .sep { width: 1px; background: var(--border); margin: 0 2px; }
 
@@ -146,6 +182,7 @@ html, body {
 .slot .ic { font-size: 26px; line-height: 1; }
 .slot .nm { font-size: 10.5px; margin-top: 4px; color: var(--muted); white-space: nowrap; }
 .slot .ct { position: absolute; top: 3px; right: 6px; font-size: 12px; font-weight: 700; color: #ffd27a; }
+.ic-img { width: 1.25em; height: 1.25em; margin: -0.1em 0; vertical-align: middle; display: inline-block; }
 .sp-birch { filter: grayscale(0.8) brightness(1.6); }
 .sp-oak { filter: sepia(0.4) brightness(0.85); }
 .sp-holm { filter: brightness(0.6) saturate(0.6); }
@@ -194,6 +231,19 @@ html, body {
 #modal-body ol, #modal-body ul { padding-left: 20px; margin: 4px 0; }
 .muted { color: var(--muted); font-size: 13px; }
 .row-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.points-list { list-style: none; padding-left: 0 !important; }
+.points-list li { margin: 4px 0; }
+
+#confirm {
+  position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+#confirm[hidden] { display: none; }
+.confirm-card { width: min(380px, calc(100vw - 32px)); padding: 18px 20px; background: rgba(22, 13, 8, 0.97); }
+.confirm-card h3 { margin: 0 0 8px; font-size: 18px; }
+.confirm-card p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--muted); }
+.confirm-btns { justify-content: flex-end; margin-top: 16px; }
+.confirm-btns .btn.danger { border-color: #d0503a; }
 
 .shop { display: flex; flex-direction: column; gap: 6px; }
 .shop-row { display: grid; grid-template-columns: 36px 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; background: rgba(255, 255, 255, 0.03); border-radius: 10px; }
@@ -235,7 +285,7 @@ html, body {
 }
 
 @media (max-width: 900px) {
-  #status { top: auto; bottom: 120px; max-width: calc(100vw - 24px); font-size: 13px; }
+  #status { font-size: 13px; padding: 7px 10px; }
   #hud { width: 220px; font-size: 12px; padding: 8px 10px; }
   #topbar {
     flex-direction: column-reverse;
@@ -265,17 +315,20 @@ html, body {
   .bar { height: 7px; }
   .grid { gap: 2px 6px; margin-top: 5px; }
   #speed { gap: 4px; margin-top: 5px; padding-top: 5px; font-size: 10.5px; }
-  .spd-btn { width: 24px; height: 22px; font-size: 13px; border-radius: 6px; }
+  .spd-btn { width: 30px; height: 27px; font-size: 16px; border-radius: 7px; flex-shrink: 0; }
+  #speed .spd-mid { min-width: 0; white-space: normal; line-height: 1.15; }
 
   #topbar { top: 8px; right: 8px; gap: 6px; }
   .topbar-row { gap: 5px; }
   #topbar .btn { min-width: 34px; padding: 5px 8px; font-size: 13.5px; border-radius: 9px; line-height: 1.3; }
+  #topbar .topbar-icons .btn { min-width: 40px; height: 36px; padding: 0 6px; font-size: 16.5px; border-radius: 10px; }
 }
 
 @media (max-width: 389px) {
   #hud { padding: 8px 7px; }
   .topbar-row { gap: 4px; }
   #topbar .btn { min-width: 32px; padding: 5px 6px; }
+  #topbar .topbar-icons .btn { min-width: 37px; height: 35px; padding: 0 5px; font-size: 16px; }
 }
 
 @media (max-width: 359px) {
@@ -288,13 +341,14 @@ html, body {
   .pts { font-size: 12px; }
   .bar-row span { width: 34px; font-size: 10px; }
   #speed { font-size: 9px; }
-  #contact { font-size: 9px; }
-  .spd-btn { width: 18px; height: 16px; font-size: 11px; }
+  .spd-btn { width: 24px; height: 22px; font-size: 13px; }
   #topbar .btn { min-width: 0; padding: 3px 6px; font-size: 11px; border-radius: 8px; }
+  #topbar .topbar-icons .btn { min-width: 31px; height: 31px; padding: 0 4px; font-size: 14px; }
 }
 
 /* Ventanas y tienda en el móvil: tarjetas con los botones de compra a todo el ancho. */
 @media (max-width: 540px) {
+  .set-head .muted { display: block; margin-top: 2px; }
   .modal-card { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: 0 12px 14px; }
   .modal-head {
     position: sticky; top: 0; z-index: 1; margin: 0 -12px; padding: 12px 12px 10px;

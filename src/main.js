@@ -16,6 +16,7 @@ import { Game } from './game.js';
 import { Interaction } from './interaction.js';
 import { UI } from './ui.js';
 import { CameraRig } from './cameraRig.js';
+import { t } from './i18n.js';
 
 // Un aviso por sesión del navegador, solo en el dominio publicado.
 function notifyVisit(ui) {
@@ -52,12 +53,15 @@ function clientOS() {
   const ua = navigator.userAgent;
   const ipad = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
   if (ipad || /iPhone|iPad|iPod/.test(ua)) return 'iOS';
-  return navigator.userAgentData?.platform
+  const raw = navigator.userAgentData?.platform
     || (/Android/.test(ua) ? 'Android'
-      : /Mac OS X/.test(ua) ? 'macOS'
+      : /Mac OS X|Macintosh/.test(ua) ? 'macOS'
       : /Windows/.test(ua) ? 'Windows'
+      : /CrOS/.test(ua) ? 'ChromeOS'
       : /Linux/.test(ua) ? 'Linux'
-      : 'desconocido');
+      : '');
+  const names = { macos: 'macOS', mac: 'macOS', osx: 'macOS', windows: 'Windows', linux: 'Linux', android: 'Android', ios: 'iOS', 'chrome os': 'ChromeOS', 'chromium os': 'ChromeOS' };
+  return names[raw.toLowerCase()] || raw || 'desconocido';
 }
 
 // En Mac, pedir «low-power» hace que Safari y Chrome devuelvan un contexto nulo
@@ -150,10 +154,12 @@ function showWebGLHelp(reasons = []) {
   const gl2 = canGet('webgl2'), gl1 = canGet('webgl') || canGet('experimental-webgl');
   const steps = en ? [
     '<b>Chrome:</b> Settings → System → turn on <i>“Use graphics acceleration when available”</i> and relaunch Chrome. Then open <code>chrome://gpu</code>: “WebGL2” should say “Hardware accelerated”.',
+    '<b>If Chrome still says “Disabled”:</b> open <code>chrome://flags</code>, search <i>“Override software rendering list”</i>, set it to <i>Enabled</i> and press <i>Relaunch</i>.',
     '<b>Safari:</b> it needs Safari 15 or later (update macOS). In Safari → Settings → Advanced, tick <i>“Show features for web developers”</i>; then in Develop → Feature Flags make sure <i>WebGL 2.0</i> is on.',
     'Restart the Mac and close other tabs or apps that use 3D.',
   ] : [
     '<b>Chrome:</b> Ajustes → Sistema → activa <i>«Usar aceleración gráfica cuando esté disponible»</i> y reinicia Chrome. Después abre <code>chrome://gpu</code>: «WebGL2» debe decir «Hardware accelerated».',
+    '<b>Si Chrome sigue diciendo «Disabled»:</b> abre <code>chrome://flags</code>, busca <i>«Override software rendering list»</i>, ponlo en <i>Enabled</i> y pulsa <i>Relaunch</i>.',
     '<b>Safari:</b> hace falta Safari 15 o posterior (actualiza macOS). En Safari → Ajustes → Avanzado, marca <i>«Mostrar funciones para desarrolladores web»</i>; luego en Desarrollo → Indicadores de funciones comprueba que <i>WebGL 2.0</i> está activado.',
     'Reinicia el Mac y cierra otras pestañas o apps que usen 3D.',
   ];
@@ -269,8 +275,12 @@ if (savedAt) {
   const r = game.catchUp(away);
   if (r && away > 60) ui.showOffline(r);
   ui.refreshInventory();
+  if (!game.state.tutorialSeen) {
+    if (game.entries.size > 0 || game.state.gameTime > 60) game.state.tutorialSeen = true;
+    else ui.startTutorial();
+  }
 } else {
-  ui.openHelp();
+  ui.startTutorial();
 }
 
 let lastSave = 0;
@@ -329,17 +339,40 @@ function frame() {
   }
 }
 
-// Instalada como app (Android/Google Play o pantalla de inicio) no se pregunta al salir.
-const installedApp = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches
-  || document.referrer.startsWith('android-app://') || navigator.standalone === true;
+// La partida se guarda sola, así que al cerrar no se pregunta (el aviso nativo no se puede personalizar).
+// Salir con el botón Atrás pasa por la ventana propia de ui.askExit.
+window.addEventListener('beforeunload', () => game.save());
 
-window.addEventListener('beforeunload', (e) => {
-  game.save();
-  if (installedApp) return;
-  e.preventDefault();
-  e.returnValue = '';
+// Aviso antes de que se apague el fuego mientras la página está en segundo plano. Solo llega si el
+// navegador mantiene viva la pestaña o la app: cerrada del todo, avisar exigiría notificaciones push desde un servidor.
+let remindTimer = 0;
+function scheduleReminder() {
+  clearTimeout(remindTimer);
+  if (!game.state.remind || !('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!game.isAlive()) return;
+  // Con la página oculta el fuego arde a ritmo x1, así que los minutos de juego son minutos reales.
+  const left = game.remainingMinutes() * 60;
+  if (left < 120) return;
+  const lead = Math.min(600, left / 2);
+  remindTimer = setTimeout(async () => {
+    const opts = { body: t('remind.body', { min: Math.round(lead / 60) }), icon: 'icons/icon-192.png', tag: 'firegochi-fire' };
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      if (reg) await reg.showNotification(t('remind.notifTitle'), opts);
+      else new Notification(t('remind.notifTitle'), opts);
+    } catch (err) {
+      console.warn('No se pudo mostrar el aviso', err);
+    }
+  }, (left - lead) * 1000);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    game.save();
+    scheduleReminder();
+  } else {
+    clearTimeout(remindTimer);
+  }
 });
-document.addEventListener('visibilitychange', () => { if (document.hidden) game.save(); });
 
 // Accesos para depurar desde la consola.
 window.__chimenea = { game, ix, ui, scene, camera, rig };

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="scale" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c98a4b"/>
+      <stop offset="1" stop-color="#7a4520"/>
+    </linearGradient>
+    <clipPath id="body">
+      <path d="M32 9C43 9 50 22 50 36C50 50 42 61 32 61C22 61 14 50 14 36C14 22 21 9 32 9Z"/>
+    </clipPath>
+    <path id="s" d="M-7 -2Q0 -7 7 -2Q5 5 0 8Q-5 5 -7 -2Z" fill="url(#scale)" stroke="#3b210d" stroke-width="1.4" stroke-linejoin="round"/>
+  </defs>
+  <path d="M30 3h4l-.5 9h-3z" fill="#5b3a1c"/>
+  <path d="M32 9C43 9 50 22 50 36C50 50 42 61 32 61C22 61 14 50 14 36C14 22 21 9 32 9Z" fill="#4a2a12"/>
+  <g clip-path="url(#body)">
+    <use href="#s" x="26" y="14"/><use href="#s" x="38" y="14"/>
+    <use href="#s" x="20" y="21"/><use href="#s" x="32" y="21"/><use href="#s" x="44" y="21"/>
+    <use href="#s" x="14" y="28"/><use href="#s" x="26" y="28"/><use href="#s" x="38" y="28"/><use href="#s" x="50" y="28"/>
+    <use href="#s" x="20" y="35"/><use href="#s" x="32" y="35"/><use href="#s" x="44" y="35"/>
+    <use href="#s" x="14" y="42"/><use href="#s" x="26" y="42"/><use href="#s" x="38" y="42"/><use href="#s" x="50" y="42"/>
+    <use href="#s" x="20" y="49"/><use href="#s" x="32" y="49"/><use href="#s" x="44" y="49"/>
+    <use href="#s" x="26" y="56"/><use href="#s" x="38" y="56"/>
+  </g>
+  <path d="M32 9C43 9 50 22 50 36C50 50 42 61 32 61C22 61 14 50 14 36C14 22 21 9 32 9Z" fill="none" stroke="#2e1a0a" stroke-width="1.6"/>
+</svg>

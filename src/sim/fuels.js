@@ -14,7 +14,7 @@ export const FUELS = {
     desc: 'Prende al instante con una cerilla, pero dura segundos.',
   },
   pinecone: {
-    name: 'Piña seca', short: 'Piña', icon: '🌰', shape: 'cone',
+    name: 'Piña seca', short: 'Piña', icon: '<img class="ic-img" src="icons/pinecone.svg" alt="">', shape: 'cone',
     radius: 0.04, length: 0.11, mass: 0.08, ignition: 255, inertia: 9,
     flameTime: 170, emberTime: 160, volatile: 0.72, flameScale: 0.6, flameCount: 1,
     sparks: 0.7, demand: 0.07, heatOut: 0.3, moisture: 0.08, price: 4,
